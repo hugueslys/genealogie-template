@@ -1,0 +1,16 @@
+# Copier ce fichier en outils/gabarit.local (non versionné : il contient des noms réels) et l'adapter.
+# Lu par outils/gabarit.sh à chaque synchro avec le projet d'origine.
+#
+# Remplacements, appliqués dans l'ordre aux fichiers repris :  ancien => nouveau
+# (du plus long au plus court : « mon-vrai-arbre-images » avant « mon-vrai-arbre »)
+mon-vrai-arbre-images => mon-arbre-images
+mon-vrai-arbre => mon-arbre
+moi@exemple.fr => vous@exemple.fr
+le navigateur de Camille => le navigateur du responsable de l'arbre
+Camille => le responsable de l'arbre
+#
+# Termes interdits en plus de ceux lus automatiquement dans le dépôt d'origine :  ! terme
+! surnom-de-famille
+#
+# Noms de famille qui sont aussi des mots courants, à accepter :  ? mot
+? moine

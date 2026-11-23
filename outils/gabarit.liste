@@ -1,0 +1,58 @@
+# Fichiers repris du projet d'origine par outils/gabarit.sh (voir README, « Mettre à jour depuis le projet d'origine »).
+#
+# Une règle par ligne, motif à la façon de git (« * » ne traverse pas les « / », « ** » si) :
+#   + motif   fichier générique, SYNCHRONISÉ : les changements du projet d'origine sont fusionnés dans le gabarit
+#   - motif   EXCLU : jamais repris (outils propres au projet d'origine, migrations faites une seule fois…)
+#   = motif   À LA MAIN : jamais copié ; le script dit seulement s'il a changé dans le projet d'origine
+# La dernière règle qui correspond l'emporte. Un fichier qu'aucune règle ne couvre est signalé « non classé ».
+# Les données de la famille (fiches, actes, journaux, lectures, courriers…) ne sont jamais lues, même si elles changent.
+
+# Site et Worker
++ index.html
++ gedcom.mjs
++ deployer.sh
++ publier.py
++ worker/*.js
++ worker/*.mjs
+
+# Outils et leur documentation
++ outils/*.mjs
++ outils/*.cjs
++ outils/*.py
++ outils/*.sh
++ outils/sites.json
++ outils/README.md
++ outils/DONNEES.md
++ outils/PARTAGES.md
+- outils/consolider.mjs
+- outils/controle-conversion.mjs
+- outils/migrer-liens.mjs
+
+# Méthode
++ recherches/METHODE.md
++ recherches/CONSIGNES-RECHERCHE.md
+
+# Skills, intégration continue, dépendances
++ .claude/skills/**
++ .github/workflows/*.yml
++ package.json
++ package-lock.json
++ .gitignore
+
+# Rendus génériques à la main : le script signale seulement qu'ils ont changé
+= CLAUDE.md
+= cloudflare.config.ts
+= partages.json
+= manifest.webmanifest
+= icone.png
+= recherches/JOURNAL.md
+= data/meta.json
+# Code et données mêlés (le mécanisme est générique, le contenu est celui de la famille)
+= vues.js
+= lieux.js
+= recits.js
+
+# Propres au projet d'origine
+- recherches/FRONTIERE.md
+- recherches/SEANCE-NAVIGATEUR.md
+- entretiens/**

@@ -13,3 +13,6 @@ node_modules/
 /actes/
 /lieux/
 /photos/
+
+# Synchro du gabarit : remplacements et termes propres au projet d’origine (noms réels), jamais versionnés.
+/outils/gabarit.local
