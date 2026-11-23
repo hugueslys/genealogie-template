@@ -297,9 +297,31 @@ for (const [id, p] of Object.entries(P)) {
   }
 }
 
+// ---------- Génération connue mais non créée ----------
+// Un ancêtre direct (de la racine de l'arbre ou de la racine d'un partage) sans père ou sans mère, dont le texte dit « Fils de … » / « Fille de … »
+// (début de phrase des remarques, preuve d'union) : les parents sont connus mais n'ont pas de fiche. Ticket #121.
+{
+  const anc = new Set();
+  const monter = id => { if (!id || anc.has(id) || !P[id]) return; anc.add(id); monter(P[id].pere); monter(P[id].mere); };
+  const racines = [F.racine];
+  try { for (const pa of JSON.parse(fs.readFileSync(path.join(RACINE, "partages.json"), "utf8")).partages || []) racines.push(pa.racine); } catch {}
+  for (const r of racines) monter(r);
+  // « fils de X » / « fille de X » sur la personne elle-même : pas « sa fille de », « un fils de », « leur fils de »…
+  const motif = /(?<!\()(?<!\b(?:sa|son|ses|une?|leur|la|le|dont|autre|même|deux|seule?)\s)\b(?:[Ff]ils|[Ff]ille)(?: légitime)? (?:de feu |de défunte? |de |d['’])[A-ZÀ-Ý]/;
+  for (const id of anc) {
+    const p = P[id];
+    if (p.inconnu || (p.pere && p.mere)) continue;
+    // Les doutes s'écrivent dans « pistes » avec le mot « parents non créés » : le contrôle se tait alors.
+    if (/parents non créés/i.test(p.pistes || "")) continue;
+    const textes = [p.remarques, p.fiabNote, ...(p.unions || []).map(u => u.preuve), ...(p.chronologie || []).map(c => c.texte)].filter(Boolean);
+    if (textes.some(t => motif.test(t)))
+      signaler(AV, "generation", id, `${nomDe(id)} : parents nommés dans le texte (« Fils/Fille de … ») mais ${!p.pere && !p.mere ? "père et mère" : !p.pere ? "père" : "mère"} sans fiche. Créer leurs fiches après relecture de l'acte, ou expliquer le doute dans « pistes ».`);
+  }
+}
+
 // ---------- Sortie ----------
 const ordre = { [ERR]: 0, [AV]: 1 };
-const PRIO = ["execution", "fichier", "structure", "racine", "lien", "id", "cycle", "sexe", "fiab", "preuve", "remontee", "image", "lieux", "dates", "age", "conjoint", "source", "lieu", "orpheline", "taille"];
+const PRIO = ["execution", "fichier", "structure", "racine", "lien", "id", "cycle", "sexe", "fiab", "preuve", "remontee", "generation", "image", "lieux", "dates", "age", "conjoint", "source", "lieu", "orpheline", "taille"];
 problemes.sort((a, b) => ordre[a.niveau] - ordre[b.niveau] || PRIO.indexOf(a.type) - PRIO.indexOf(b.type) || String(a.id).localeCompare(String(b.id)));
 const nbErr = problemes.filter(p => p.niveau === ERR).length;
 const nbAv = problemes.length - nbErr;
@@ -309,7 +331,7 @@ for (const p of problemes) parType[`${p.niveau} ${p.type}`] = (parType[`${p.nive
 if (JSON_OUT) {
   console.log(JSON.stringify({ personnes: Object.keys(P).length, erreurs: nbErr, avertissements: nbAv, parType, problemes }, null, 2));
 } else {
-  const LIB = { execution: "fichier JS qui ne s'exécute pas", fichier: "fichier manquant", structure: "structure invalide", racine: "racine", lien: "lien parent/conjoint cassé", id: "identifiant inconnu (actes, vues, récits)", cycle: "cycle d'ascendance", sexe: "sexe incohérent", fiab: "fiabilité invalide", preuve: "preuve d'un lien de parenté", remontee: "remontée sur lien faible (C ou D)", image: "image absente", lieux: "répertoire des lieux", dates: "dates incohérentes", age: "âge déclaré incohérent", conjoint: "conjoint non réciproque", source: "fiche sans source", lieu: "lieu non reconnu", orpheline: "image d'acte orpheline", taille: "image de plus de 1 Mo" };
+  const LIB = { execution: "fichier JS qui ne s'exécute pas", fichier: "fichier manquant", structure: "structure invalide", racine: "racine", lien: "lien parent/conjoint cassé", id: "identifiant inconnu (actes, vues, récits)", cycle: "cycle d'ascendance", sexe: "sexe incohérent", fiab: "fiabilité invalide", preuve: "preuve d'un lien de parenté", remontee: "remontée sur lien faible (C ou D)", generation: "parents connus sans fiche", image: "image absente", lieux: "répertoire des lieux", dates: "dates incohérentes", age: "âge déclaré incohérent", conjoint: "conjoint non réciproque", source: "fiche sans source", lieu: "lieu non reconnu", orpheline: "image d'acte orpheline", taille: "image de plus de 1 Mo" };
   console.log(`Vérification de ${Object.keys(P).length} fiches : ${nbErr} erreur(s), ${nbAv} avertissement(s).`);
   for (const [k, v] of Object.entries(parType)) { const [niv, t] = k.split(" "); console.log(`  ${niv.padEnd(13)} ${String(v).padStart(4)}  ${LIB[t] || t}`); }
   if (problemes.length) console.log("");
