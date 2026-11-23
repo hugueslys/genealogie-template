@@ -32,6 +32,7 @@ l'objectif, les pistes et le ticket : tout le reste est ici.
 - **Liens de parenté** (champ `liens`, voir `outils/DONNEES.md`) : chaque lien père / mère / union a sa note et la nature de sa preuve (directe, indirecte, témoignage, arbre, contredite). Un lien indirect ou contredit a un **raisonnement écrit** : indices, hypothèses écartées, ce qui manque.
 - **Ne jamais remonter au-dessus d'un lien non confirmé** (C ou D) : on confirme d'abord le lien, ou on signale la question. (Sinon, on risque de construire une branche entière sur une hypothèse fausse.)
 - Identité sûre avant de rattacher (nom, prénoms, âge, lieu, parents ou conjoint concordants). Sinon : `pistes` ou `aVerifier`, jamais de filiation.
+- **Parents trouvés = fiches créées.** Un acte qui nomme les parents d'un ancêtre direct : crée leurs fiches dans la même passe (liens sans `relu`, la relecture viendra), ou écris dans « pistes » la mention « parents non créés : <raison> ». `verifier.mjs` signale sinon « parents connus sans fiche ».
 - Un lien qui fait **monter d'une génération** sera relu par une seconde recherche (voir METHODE.md, « Relecture ») : écris dans ton rapport la liste de ces liens, avec l'acte et la vue.
 
 ## 5. Données et contrôles
