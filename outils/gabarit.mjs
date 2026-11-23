@@ -156,6 +156,7 @@ if (remote) interdits.add(norm(remote[1]));
 const courriel = (gitBuf(ORIGINE, "config", "user.email") || "").toString().trim();
 if (courriel) interdits.add(norm(courriel));
 for (const x of [...interdits]) if (!x || x.length < 3) interdits.delete(x);
+for (const x of termesListe) interdits.add(norm(x)); // termes de gabarit.liste, même courts (« r2 »)
 // Noms de famille qui sont aussi des mots courants : acceptés s'ils figurent déjà dans le gabarit validé (ex. « les »).
 const dejaLa = new Set(), acceptes = new Set(local.acceptes.map(norm));
 const textesGabarit = git(GABARIT, "ls-files").split("\n").filter(f => f && !/\.(png|jpe?g)$|package-lock\.json$/.test(f)).map(f => norm((gitBuf(GABARIT, "show", `HEAD:${f}`) || "").toString("utf8")));
