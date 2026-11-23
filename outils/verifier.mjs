@@ -299,7 +299,7 @@ for (const [id, p] of Object.entries(P)) {
 
 // ---------- Génération connue mais non créée ----------
 // Un ancêtre direct (de la racine de l'arbre ou de la racine d'un partage) sans père ou sans mère, dont le texte dit « Fils de … » / « Fille de … »
-// (début de phrase des remarques, preuve d'union) : les parents sont connus mais n'ont pas de fiche. Ticket #121.
+// (début de phrase des remarques, preuve d'union) : les parents sont connus mais n’ont pas de fiche.
 {
   const anc = new Set();
   const monter = id => { if (!id || anc.has(id) || !P[id]) return; anc.add(id); monter(P[id].pere); monter(P[id].mere); };
