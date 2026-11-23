@@ -1,0 +1,24 @@
+{
+  "format": 2,
+  "prenoms": "Jeanne",
+  "nom": "MARTEL",
+  "sexe": "F",
+  "role": "Personne fictive (exemple du gabarit)",
+  "naissance": { "date": "08/09/1952", "tri": "1952-09-08", "lieu": "Tours (Indre-et-Loire)", "commune": "Tours" },
+  "pere": "paul_martel",
+  "mere": "louise_bertin",
+  "liens": {
+    "pere": { "fiab": "B", "preuve": "témoignage", "src": [ 1 ] },
+    "mere": { "fiab": "B", "preuve": "témoignage", "src": [ 1 ] }
+  },
+  "metier": "Institutrice",
+  "domaines": [ "arts" ],
+  "fiab": "B",
+  "fiabNote": "Exemple : informations données par la personne elle-même.",
+  "chronologie": [
+    { "date": "1974", "tri": "1974", "lieu": "Tours", "commune": "Tours", "texte": "Devient institutrice (exemple fictif).", "src": [ 1 ] }
+  ],
+  "sources": [
+    { "texte": "Témoignage de Jeanne Martel (exemple fictif), 01/01/2027.", "nature": "temoignage" }
+  ]
+}

@@ -1,0 +1,15 @@
+.DS_Store
+.claude/*
+!.claude/skills/
+__pycache__/
+public/
+node_modules/
+.cloudflare/
+# Générés depuis data/ par node outils/construire.mjs (et au déploiement) : non versionnés.
+/famille.js
+/actes.js
+/.partages/
+# Images : dans R2 (bucket nommé dans cloudflare.config.ts), plus dans git. Envoi : node outils/r2.mjs envoyer <fichier> ; copie locale : node outils/r2.mjs telecharger.
+/actes/
+/lieux/
+/photos/

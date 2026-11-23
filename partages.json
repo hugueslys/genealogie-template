@@ -1,0 +1,20 @@
+{
+  "_doc": "Versions réduites du site, une par branche de famille, produites par node outils/partager.mjs dans public/partage/<nom>/. Format du périmètre et règle de masquage des vivants : outils/PARTAGES.md.",
+  "commentaires": {
+    "_doc": "Commentaires et visiteurs des partages (Worker, voir outils/PARTAGES.md, section « Commentaires »). equipeAccess : nom de votre équipe Cloudflare Zero Trust (<equipe>.cloudflareaccess.com). administrateurs : e-mails de connexion Access qui voient, depuis le site complet, tous les commentaires et les visiteurs. accessAudRacine (application du site complet) et accessAud d'un partage (son application, s'il en a une) : AUD des applications Access ; le jeton d'un partage doit porter l'AUD du partage ou celui de la racine. membres d'un partage : {e-mail: nom affiché} (facultatif ; ne donne aucun droit). Valeurs A_RENSEIGNER à remplir avant le premier déploiement.",
+    "equipeAccess": "A_RENSEIGNER",
+    "administrateurs": ["vous@exemple.fr"],
+    "accessAudRacine": []
+  },
+  "partages": [
+    {
+      "nom": "martel",
+      "titre": "Le côté Martel",
+      "racine": "jeanne_martel",
+      "perimetre": { "ancetresDe": ["paul_martel"], "descendantsDesAncetres": true, "conjoints": true },
+      "accessAud": [],
+      "membres": {},
+      "note": "Exemple (personnes fictives) : Paul Martel, ses ancêtres, tous leurs descendants et leurs conjoints. Les vivants sont masqués (pas de vivantsVisibles)."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Arbre généalogique",
+  "short_name": "Arbre",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#eceeea",
+  "theme_color": "#eceeea",
+  "icons": [{ "src": "icone.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }]
+}

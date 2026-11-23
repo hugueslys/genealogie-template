@@ -1,0 +1,37 @@
+{
+  "format": 2,
+  "prenoms": "Paul Henri",
+  "usuel": "Paul",
+  "nom": "MARTEL",
+  "sexe": "M",
+  "role": "Personne fictive (exemple du gabarit)",
+  "naissance": { "date": "14/02/1921", "tri": "1921-02-14", "lieu": "Chinon (Indre-et-Loire)", "commune": "Chinon" },
+  "deces": { "date": "03/11/1994", "tri": "1994-11-03", "lieu": "Tours (Indre-et-Loire)", "commune": "Tours", "age": 73 },
+  "unions": [
+    {
+      "conjoint": "louise_bertin",
+      "date": "12/04/1947",
+      "tri": "1947-04-12",
+      "lieu": "Tours (Indre-et-Loire)",
+      "commune": "Tours",
+      "preuve": "Acte de mariage (exemple fictif), source 2.",
+      "src": [ 2 ],
+      "lien": { "fiab": "A", "preuve": "directe", "src": [ 2 ] }
+    }
+  ],
+  "metier": "Menuisier",
+  "domaines": [ "artisan" ],
+  "fiab": "A",
+  "fiabNote": "Exemple : naissance et mariage établis par des actes lus (fictifs).",
+  "chronologie": [
+    { "date": "1946", "tri": "1946", "lieu": "Tours", "commune": "Tours", "texte": "Ouvre son atelier de menuiserie (exemple fictif).", "src": [ 3 ] }
+  ],
+  "remarques": "Fiche d'exemple : Paul Martel n'a jamais existé. Remplacez ces fiches par celles de votre famille.",
+  "sources": [
+    { "texte": "Acte de naissance de Paul Henri Martel, Chinon, 14/02/1921 (exemple fictif : registre et vue à citer ici).", "nature": "acte", "archive": "Archives départementales d'Indre-et-Loire" },
+    { "texte": "Acte de mariage Martel × Bertin, Tours, 12/04/1947 (exemple fictif).", "nature": "acte", "archive": "Archives départementales d'Indre-et-Loire" },
+    { "texte": "Annuaire du commerce d'Indre-et-Loire, 1946 (exemple fictif).", "nature": "presse" },
+    { "texte": "Fichier des personnes décédées (INSEE), exemple fictif.", "nature": "index" }
+  ],
+  "pistes": [ "Exemple de piste : chercher ses parents dans l'acte de naissance de Chinon (1921)." ]
+}

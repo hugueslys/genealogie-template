@@ -1,0 +1,30 @@
+{
+  "format": 2,
+  "prenoms": "Louise Marie",
+  "nom": "BERTIN",
+  "sexe": "F",
+  "role": "Personne fictive (exemple du gabarit)",
+  "naissance": { "date": "21/06/1924", "tri": "1924-06-21", "lieu": "Paris (Seine)", "commune": "Paris" },
+  "deces": { "date": "17/01/2011", "tri": "2011-01-17", "lieu": "Tours (Indre-et-Loire)", "commune": "Tours", "age": 86 },
+  "unions": [
+    {
+      "conjoint": "paul_martel",
+      "date": "12/04/1947",
+      "tri": "1947-04-12",
+      "lieu": "Tours (Indre-et-Loire)",
+      "commune": "Tours",
+      "preuve": "Acte de mariage (exemple fictif), source 1.",
+      "src": [ 1 ],
+      "lien": { "fiab": "A", "preuve": "directe", "src": [ 1 ] }
+    }
+  ],
+  "metier": "Couturière",
+  "domaines": [ "artisan" ],
+  "fiab": "B",
+  "fiabNote": "Exemple : mariage établi par un acte, naissance d'après le fichier des décès (index).",
+  "aVerifier": [ "Exemple : lire son acte de naissance (Paris, 1924) pour confirmer la date." ],
+  "sources": [
+    { "texte": "Acte de mariage Martel × Bertin, Tours, 12/04/1947 (exemple fictif).", "nature": "acte", "archive": "Archives départementales d'Indre-et-Loire" },
+    { "texte": "Fichier des personnes décédées (INSEE), exemple fictif.", "nature": "index" }
+  ]
+}

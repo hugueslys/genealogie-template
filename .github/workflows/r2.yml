@@ -1,0 +1,23 @@
+name: Stockage des images (R2)
+# Chaque lundi : occupation du bucket R2 des images. Échoue (et GitHub prévient par e-mail) au-delà de 80 % de la
+# limite du projet (5 Go, la moitié de l'offre gratuite de R2), et si une image référencée manque dans R2.
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+jobs:
+  taille:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Occupation du bucket
+        run: node outils/r2.mjs taille | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Images référencées présentes dans R2
+        run: node outils/r2.mjs manquantes | tail -20 | tee -a "$GITHUB_STEP_SUMMARY"

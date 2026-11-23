@@ -1,0 +1,1475 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arbre généalogique</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Arbre">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eceeea">
+<meta name="color-scheme" content="light">
+<link rel="manifest" href="manifest.webmanifest" crossorigin="use-credentials">
+<link rel="apple-touch-icon" href="icone.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  /* Mise en page : arbre ascendant en colonnes par génération, zoomable ; fiche de la personne à droite (en volet bas sur téléphone). */
+  :root {
+    --bg: #eceeea; --surface: #f9faf7; --ink: #1d2729; --muted: #667074;
+    --line: #c3c9c4; --accent: #2c4a7c; --m: #3b6f96; --f: #a04a6b;
+    --fa: #2e7d4f; --fb: #2c6fb0; --fc: #a86a00; --fd: #b23a3a; --hl: #b86e00; --hlbg: #fbecd2; --eau: #8fb3cf;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: light;
+  }
+  /* Thème clair pour tous, même si l'appareil est en mode sombre (choix du gabarit). */
+  :root[data-theme="dark"] {
+    --bg: #161b1d; --surface: #1f2628; --ink: #e4e9e6; --muted: #94a09f;
+    --line: #3a4447; --accent: #8fb0e6; --m: #7db4da; --f: #e094b0;
+    --fa: #6fcf97; --fb: #7fb6ee; --fc: #e2aa4c; --fd: #f08a8a; --hl: #f0b44c; --hlbg: #3a2f1c; --eau: #3d6680;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--serif);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  header { padding-block: 18px 6px; }
+  h1 { margin: 0; font-size: 24px; font-weight: normal; text-wrap: balance; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  #barre { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding-block: 8px; font: 13px var(--sans); }
+  #zoom { display: flex; gap: 6px; }
+  #zoom button { min-width: 40px; height: 36px; padding: 0 10px; font: 500 14px var(--sans); color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  #zoom button:hover { border-color: var(--accent); }
+  #legende { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); }
+  .niv { display: inline-flex; align-items: center; gap: 6px; }
+  .niv i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .niv.A i { background: var(--fa); } .niv.B i { background: var(--fb); }
+  .niv.C i { background: var(--fc); border-radius: 2px; } .niv.D i { background: var(--fd); border-radius: 0; transform: rotate(45deg); }
+  main { display: flex; gap: 16px; padding-block: 0 24px; align-items: flex-start; }
+  #zone { flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+    min-width: 0; height: 78vh; touch-action: pan-x pan-y; overscroll-behavior: contain; }
+  #cadre { position: relative; margin: 20px; }
+  #arbre { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #arbre svg { position: absolute; inset: 0; pointer-events: none; }
+  #arbre path { fill: none; stroke: var(--line); stroke-width: 1.5; }
+  #arbre path.implexe { stroke: var(--fd); stroke-dasharray: 6 5; }
+  #arbre path.faible { stroke-dasharray: 2 4; stroke-linecap: round; }
+  .carte.commun { outline: 2px dashed var(--fd); outline-offset: 2px; }
+  #fiche .fiab.commun { border-color: var(--fd); border-style: dashed; }
+  .gen { position: absolute; top: 0; font: 11px/1 var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .carte { position: absolute; width: 210px; height: 70px; padding: 9px 12px; text-align: left;
+    background: var(--bg); color: inherit; font: inherit; cursor: pointer;
+    border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: 8px; }
+  .carte.M { border-left-color: var(--m); } .carte.F { border-left-color: var(--f); }
+  .carte:hover, .carte.actif { border-color: var(--accent); }
+  .carte.actif { box-shadow: 0 0 0 2px var(--accent); }
+  .carte.inconnu { border-style: dashed; background: transparent; }
+  .carte.inconnu .n { color: var(--muted); font-style: italic; }
+  .carte .n { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 14px; }
+  .carte .d { display: block; font: 12px/1.4 var(--sans); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .carte .niv { position: absolute; top: 9px; right: 9px; }
+  .hist { font-size: .78em; margin-right: 4px; vertical-align: 1px; }
+  .carte .fr { position: absolute; bottom: 7px; right: 8px; font: 11px/1 var(--sans); color: var(--muted); }
+  #fiche .portrait { margin: 0 0 12px; }
+  #fiche .photo { display: block; max-width: 100%; max-height: 300px; border-radius: 8px; }
+  #fiche figcaption { margin-top: 6px; font: 12px/1.4 var(--sans); color: var(--muted); }
+  #fiche .preuve { font-size: 13.5px; margin-top: 6px; }
+  #fiche .preuve b { font: 500 12px var(--sans); color: var(--muted); display: block; }
+  #fiche .preuve p { margin: 4px 0 0; }
+  #fiche .lienp { font: 13px/1.45 var(--sans); margin: 4px 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+  #fiche .lienp .qui { color: var(--muted); min-width: 3.2em; }
+  #fiche .lienp .niv { align-self: center; }
+  #fiche details.raison { font-size: 13.5px; margin: 2px 0 8px; padding-left: 10px; border-left: 2px solid var(--line); }
+  #fiche details.raison summary { font: 500 12px var(--sans); color: var(--muted); cursor: pointer; }
+  #fiche details.raison p { margin: 4px 0 0; }
+  #fiche { width: 330px; flex: none; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 18px 20px; }
+  #fiche h2 { margin: 0 0 2px; font-size: 20px; font-weight: normal; padding-right: 30px; }
+  #fiche .sous { color: var(--muted); font: 13px var(--sans); margin-bottom: 10px; }
+  #fiche .fiab { font: 13px/1.4 var(--sans); margin-bottom: 12px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+  #fiche .fiab b { font-weight: 500; }
+  #fiche dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+  #fiche dt { color: var(--muted); font: 12px/1.7 var(--sans); }
+  #fiche dd { margin: 0; min-width: 0; }
+  #fiche h3 { margin: 16px 0 4px; font: 11px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  #fiche p { margin: 0; font-size: 14px; }
+  #fiche ul { margin: 0; padding-left: 18px; font-size: 14px; }
+  #fiche .warn li { color: var(--fc); }
+  #fiche ol.chrono { list-style: none; padding: 0; margin: 4px 0 0; font-size: 14px; }
+  #fiche ol.chrono li { display: block; padding: 5px 0 6px; border-top: 1px solid var(--line); line-height: 1.45; font-size: 13.5px; }
+  #fiche ol.chrono li:first-child { border-top: 0; }
+  #fiche ol.chrono .cd { display: block; font: 500 11.5px/1.5 var(--sans); color: var(--muted); font-variant-numeric: tabular-nums; }
+  #fiche ol.chrono b { font-weight: 500; }
+  #fiche ol.chrono sup a, #fiche ol.chrono sup { font: 10px var(--sans); text-decoration: none; }
+  #fiche ol.sources { padding-left: 22px; font-size: 13px; }
+  #fiche ol.sources .nat { font: 500 10.5px/1 var(--sans); padding: 2px 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  #fiche ol.sources .nat.acte, #fiche ol.sources .nat.dossier { color: var(--fa); border-color: var(--fa); }
+  #fiche ol.sources .nat.index, #fiche ol.sources .nat.arbre { color: var(--fc); border-color: var(--fc); }
+  #fiche ol.chrono sup a.faible { color: var(--fc); }
+  #fiche ol.sources li:target, #fiche ol.sources li.vise { background: var(--bg); outline: 1px solid var(--accent); border-radius: 4px; }
+  #minicarte { height: 210px; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg); }
+  #fiche ul.lieux { list-style: none; padding: 0; margin-top: 6px; font: 13px/1.45 var(--sans); }
+  #fiche ul.lieux li { display: flex; gap: 8px; align-items: baseline; padding: 2px 0; cursor: pointer; }
+  #fiche ul.lieux li i { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--surface); box-shadow: 0 0 0 1px var(--line); transform: translateY(1px); }
+  #fiche ul.lieux li i.evt { background: var(--accent); } #fiche ul.lieux li i.vue { background: var(--ink); border-radius: 2px; } #fiche ul.lieux li i.cite { background: var(--muted); opacity: .7; }
+  #fiche ul.lieux li span { color: var(--muted); }
+  #fiche a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  #fermer { display: none; position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; font: 20px/1 var(--sans);
+    color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  [hidden] { display: none !important; }
+  .carte.frere { width: 186px; height: 38px; padding: 3px 9px; border-left-width: 3px; background: var(--surface); border-style: dashed; }
+  .carte.frere .n { font-size: 13px; padding-right: 0; }
+  .carte.frere .d { font-size: 11px; line-height: 1.2; }
+  .carte.frere.conj { width: 166px; border-left-style: dotted; opacity: .92; }
+  .carte.frere.enfant { width: 166px; }
+  #arbre path.frat { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+  #zoom button[aria-pressed="true"] { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+  #famillezone { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 14px 16px 18px; max-height: 78vh; overflow: auto; }
+  #famillezone h2 { margin: 0 0 2px; font-size: 19px; font-weight: normal; }
+  #recitszone { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 18px 22px 24px; max-height: 78vh; overflow: auto; }
+  #recitszone .sommaire { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 0 0 18px; font: 13px var(--sans); }
+  #recitszone .sommaire a { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; color: var(--ink); text-decoration: none; cursor: pointer; }
+  #recitszone article { max-width: 68ch; margin: 0 0 30px; }
+  #recitszone h2 { margin: 0; font-size: 21px; font-weight: 600; text-wrap: balance; }
+  #recitszone .lieu { margin: 2px 0 10px; font: 12px var(--sans); color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+  #recitszone p { margin: 0 0 10px; line-height: 1.6; }
+  #recitszone a[data-id], .vie a[data-id] { color: var(--accent); cursor: pointer; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  #recitszone .note { font: 12px var(--sans); color: var(--muted); max-width: 68ch; }
+  .vie { margin: 10px 0 12px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--bg); border-radius: 0 8px 8px 0; }
+  .vie h3 { margin: 0 0 4px !important; }
+  .vie p { margin: 0; line-height: 1.55; }
+  .vie p.epq { margin-top: 8px; font-size: .93em; color: var(--muted); }
+  #recitszone .galerie { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 4px; max-width: 68ch; }
+  #recitszone .galerie figure { margin: 0; min-width: 0; }
+  #recitszone .galerie button { display: block; width: 100%; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); cursor: zoom-in; }
+  #recitszone .galerie img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+  #recitszone .galerie figcaption { font: 11.5px/1.35 var(--sans); color: var(--muted); margin-top: 4px; }
+  #recitszone aside.epoque { margin: 14px 0 0; padding: 10px 14px 4px; border-left: 3px solid var(--line); background: var(--bg); border-radius: 0 8px 8px 0; font: 14px/1.5 var(--sans); }
+  #recitszone aside.epoque h3 { margin: 0 0 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  #recitszone aside.epoque dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; }
+  #recitszone aside.epoque dt { font-weight: 600; font-variant-numeric: tabular-nums; }
+  #recitszone aside.epoque dd { margin: 0 0 6px; min-width: 0; }
+  @media (max-width: 560px) { #recitszone aside.epoque dl { grid-template-columns: 1fr; gap: 0; } #recitszone aside.epoque dd { margin-bottom: 8px; } }
+  /* Vue Recherches : tableau de bord des recherches à faire, même habillage que les récits. */
+  #rechercheszone { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 18px 22px 24px; max-height: 78vh; overflow: auto; }
+  #rechercheszone h2 { margin: 0; font-size: 21px; font-weight: 600; text-wrap: balance; }
+  #rechercheszone .aide { margin: 4px 0 14px; font: 13px/1.45 var(--sans); color: var(--muted); max-width: 72ch; }
+  #rechercheszone .sommaire { display: flex; flex-wrap: wrap; gap: 6px 8px; margin: 4px 0 0; font: 13px var(--sans); }
+  #rechercheszone .sommaire a { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; color: var(--ink); text-decoration: none; cursor: pointer; }
+  .rq-chiffres { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .rq-chiffre { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  .rq-chiffre > b { display: block; font: 600 24px/1.15 var(--serif); font-variant-numeric: tabular-nums; }
+  .rq-chiffre > span { display: block; margin-top: 2px; font: 12px/1.35 var(--sans); color: var(--muted); }
+  .rq-fiab { display: flex; gap: 2px; height: 10px; margin: 8px 0 7px; }
+  .rq-fiab i { display: block; min-width: 3px; border-radius: 2px; }
+  .rq-fiab i.A { background: var(--fa); } .rq-fiab i.B { background: var(--fb); } .rq-fiab i.C { background: var(--fc); } .rq-fiab i.D { background: var(--fd); }
+  .rq-fiab-leg { display: flex; flex-wrap: wrap; gap: 2px 12px; font: 12px/1.4 var(--sans); color: var(--muted); }
+  .rq-fiab-leg .niv { gap: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; } .rq-fiab-leg .niv b { font: 500 12px var(--sans); color: var(--ink); }
+  .rq-gens { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 28px; margin: 0 0 6px; }
+  .rq-gens table { border-collapse: collapse; font: 13px/1.3 var(--sans); min-width: min(100%, 420px); }
+  .rq-gens caption { text-align: left; padding: 0 0 4px; font: 11px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .rq-gens th, .rq-gens td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rq-gens th { font-weight: 500; font-size: 12px; color: var(--muted); white-space: normal; vertical-align: bottom; }
+  .rq-gens th:first-child, .rq-gens td:first-child { text-align: left; padding-left: 0; }
+  .rq-gens td small { color: var(--muted); font-size: 12px; }
+  .rq-gens .jauge { display: inline-block; width: 56px; height: 6px; margin-left: 8px; border-radius: 3px; background: var(--line); vertical-align: 1px; overflow: hidden; }
+  .rq-gens .jauge i { display: block; height: 100%; background: var(--accent); }
+  .rq-gens td.manque { color: var(--fc); font-weight: 500; }
+  .rq-filtres { position: sticky; top: -18px; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 0; padding: 10px 0; background: var(--surface); border-bottom: 1px solid var(--line); font: 13px var(--sans); }
+  .rq-filtres input, .rq-filtres select { height: 36px; padding: 0 10px; font: 14px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+  .rq-filtres input { flex: 1 1 220px; max-width: 360px; }
+  .rq-filtres select { flex: 0 1 auto; max-width: 100%; cursor: pointer; }
+  .rq-filtres select.on, .rq-filtres input.on { border-color: var(--hl); box-shadow: 0 0 0 1px var(--hl); }
+  .rq-filtres output { flex: 1 0 100%; color: var(--muted); font-size: 12px; }
+  .rq-sec { margin: 22px 0 0; scroll-margin-top: 112px; }
+  .rq-sec > .aide { margin-bottom: 6px; }
+  .rq-groupe { margin: 10px 0 0; }
+  .rq-groupe > summary { cursor: pointer; padding: 6px 0; font: 500 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .rq-groupe > summary span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .rq-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 8px; align-items: start; }
+  .rq-bloc { position: relative; display: block; width: 100%; min-width: 0; padding: 8px 12px 9px; text-align: left; font: inherit; color: inherit;
+    background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: 8px; }
+  .rq-bloc.M { border-left-color: var(--m); } .rq-bloc.F { border-left-color: var(--f); }
+  button.rq-bloc, .rq-bloc .rq-tete { cursor: pointer; }
+  button.rq-bloc:hover, .rq-bloc:has(.rq-tete:hover) { border-color: var(--accent); }
+  .rq-bloc .rq-tete { display: block; width: 100%; padding: 0; text-align: left; font: inherit; color: inherit; background: none; border: 0; }
+  .rq-bloc .n { display: block; padding-right: 18px; font-size: 15px; line-height: 1.3; overflow-wrap: anywhere; }
+  .rq-bloc .d { display: block; margin-top: 1px; font: 12px/1.4 var(--sans); color: var(--muted); }
+  .rq-bloc > .niv, .rq-bloc .rq-tete > .niv { position: absolute; top: 11px; right: 10px; }
+  .rq-bloc .direct { font: 500 11px var(--sans); color: var(--accent); }
+  .rq-bloc .manque { display: block; margin-top: 4px; font: 500 12px/1.4 var(--sans); color: var(--fc); }
+  .rq-bloc .piste { display: block; margin: 5px 0 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+  .rq-bloc .piste.replie { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+  .rq-bloc .piste a[data-id] { color: var(--accent); cursor: pointer; text-decoration: underline; text-decoration-thickness: 1px; }
+  .rq-bloc ul { margin: 5px 0 0; padding-left: 18px; font-size: 14px; line-height: 1.45; }
+  .rq-bloc ul li { margin: 2px 0; } .rq-bloc ul li::marker { color: var(--fc); }
+  .rq-plus { margin-top: 4px; padding: 4px 0; font: 500 12px var(--sans); color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .rq-vide { font: 13px var(--sans); color: var(--muted); }
+  /* Commentaires de la famille (servis par le Worker : absents en file:// ou sans l'API). */
+  #fiche .cm { margin-top: 18px; border-top: 1px solid var(--line); }
+  .cm-liste { list-style: none; padding: 0 !important; margin: 4px 0 0 !important; }
+  .cm-liste li { margin: 6px 0; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .cm-liste li.masque, .cm-encart li.masque { opacity: .6; border-style: dashed; }
+  .cm-qui { font: 12px/1.4 var(--sans); color: var(--muted); overflow-wrap: anywhere; }
+  .cm-qui b { font-weight: 500; color: var(--ink); }
+  .cm-texte { margin: 3px 0 0 !important; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cm-act { margin-top: 6px; min-height: 32px; padding: 0 10px; font: 500 12px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .cm-act:hover { border-color: var(--accent); }
+  .cm-form { display: grid; gap: 8px; margin-top: 8px; }
+  .cm-form label { display: grid; gap: 4px; font: 12px var(--sans); color: var(--muted); }
+  .cm-form input, .cm-form textarea { width: 100%; padding: 8px 10px; font: 14px/1.45 var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .cm-form textarea { resize: vertical; min-height: 72px; }
+  .cm-form input:focus, .cm-form textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .cm-bas { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .cm-envoyer { min-height: 40px; padding: 0 16px; font: 500 14px var(--sans); color: var(--surface); background: var(--accent); border: 0; border-radius: 8px; cursor: pointer; }
+  .cm-envoyer:disabled { opacity: .6; cursor: default; }
+  .cm-etat { font: 12px var(--sans); color: var(--muted); }
+  .cm-statut { margin-top: 6px; padding: 2px 7px; font: 500 11.5px/1.5 var(--sans); color: var(--fc); border: 1px solid var(--fc); border-radius: 999px; }
+  .cm-statut.traite { color: var(--fa); border-color: var(--fa); font-weight: 400; overflow-wrap: anywhere; }
+  .cm-aide { font: 12px/1.4 var(--sans) !important; color: var(--muted); }
+  .cm-encarts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; margin: 0 0 16px; }
+  .cm-encart { min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  .cm-encart h3 { margin: 0 0 6px; font: 11px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .cm-encart ul { list-style: none; margin: 0; padding: 0; }
+  .cm-encart li { padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .cm-encart li:first-child { border-top: 0; }
+  .cm-encart a[data-id] { color: var(--accent); cursor: pointer; text-decoration: underline; text-decoration-thickness: 1px; }
+  .cm-encart .cm-partage { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; font: 500 13px var(--sans); }
+  .cm-encart textarea { width: 100%; margin-top: 6px; font: 12px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+  @media (max-width: 800px) { .cm-form input, .cm-form textarea { font-size: 16px; } .cm-act { min-height: 40px; } }
+  @media (max-width: 560px) { .rq-chiffres { grid-template-columns: 1fr 1fr; gap: 8px; } .rq-gens table { width: 100%; } .rq-gens td small.nomgen { display: none; } .rq-gens .jauge { width: 36px; margin-left: 6px; }
+    .rq-gens th, .rq-gens td { padding: 5px 4px; } }
+  #famillezone .aide { margin: 0 0 10px; font: 13px var(--sans); color: var(--muted); }
+  .frang { margin-top: 14px; }
+  .frang > h3 { margin: 0 0 6px; font: 11px var(--sans); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .fgroupes { display: flex; flex-wrap: wrap; gap: 10px; }
+  .fgroupe { border: 1px dashed var(--line); border-radius: 10px; padding: 6px; min-width: 0; }
+  .fgroupe > small { display: block; font: 11px/1.3 var(--sans); color: var(--muted); margin: 0 2px 4px; }
+  .fgroupe > div { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fcarte { position: relative; width: 168px; min-height: 52px; padding: 6px 22px 6px 9px; text-align: left; font: inherit; color: inherit; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: 8px; }
+  .fcarte.M { border-left-color: var(--m); } .fcarte.F { border-left-color: var(--f); }
+  .fcarte:hover { border-color: var(--accent); }
+  .fcarte.moi { box-shadow: 0 0 0 2px var(--accent); }
+  .fcarte.direct { padding-bottom: 18px; }
+  .fcarte.direct::after { content: "ancêtre"; position: absolute; right: 6px; bottom: 4px; font: 10px var(--sans); color: var(--accent); }
+  .fcarte b { display: block; font-weight: normal; font-size: 14px; line-height: 1.25; overflow-wrap: anywhere; }
+  .fcarte span { display: block; font: 11.5px/1.35 var(--sans); color: var(--muted); }
+  .fcarte .niv { position: absolute; top: 7px; right: 7px; }
+  .fvide { font: 13px var(--sans); color: var(--muted); }
+  #fiche .actes { display: grid; gap: 10px; margin-top: 4px; }
+  #fiche .acte { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  #fiche .acte.sans { grid-template-columns: 1fr; }
+  #fiche .acte button { padding: 0; border: 0; background: none; cursor: zoom-in; line-height: 0; }
+  #fiche .acte img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); }
+  #fiche .acte b { display: block; font: 500 13px/1.35 var(--sans); }
+  #fiche .acte small { display: block; font: 12px/1.35 var(--sans); color: var(--muted); }
+  #fiche .acte small.douteux { color: var(--fc); }
+  #visionneuse { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.88); display: flex; flex-direction: column; }
+  #visionneuse .haut { display: flex; align-items: center; gap: 12px; padding: 10px max(16px, env(safe-area-inset-left, 0px)); color: #eee; font: 14px var(--sans); }
+  #visionneuse .haut span { flex: 1; min-width: 0; }
+  #visionneuse .haut a { color: #9cc3ff; }
+  #visionneuse .haut button { width: 44px; height: 44px; font: 22px/1 var(--sans); color: #eee; background: transparent; border: 1px solid #666; border-radius: 8px; cursor: pointer; }
+  #visionneuse .img { flex: 1; overflow: auto; touch-action: pan-x pan-y pinch-zoom; text-align: center; }
+  #visionneuse img { max-width: 100%; height: auto; cursor: zoom-in; }
+  #visionneuse img.plein { max-width: none; cursor: zoom-out; }
+  #filtre { display: flex; align-items: center; gap: 8px; }
+  #metier { height: 36px; padding: 0 10px; font: 500 14px var(--sans); color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; cursor: pointer; max-width: 100%; }
+  #metier.on { border-color: var(--hl); box-shadow: 0 0 0 1px var(--hl); }
+  #metierinfo { color: var(--muted); font: 13px var(--sans); }
+  .carte .mt { display: none; font: 500 12px/1.4 var(--sans); color: var(--hl); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #arbre.filtre .carte { opacity: .3; }
+  #arbre.filtre .carte.match { opacity: 1; background: var(--hlbg); border-color: var(--hl); }
+  #arbre.avecmetier .carte.match .d { display: none; }
+  #arbre.avecmetier .carte.match .mt { display: block; }
+  #arbre.filtre .carte.actif { opacity: 1; }
+  #arbre.filtre path { opacity: .35; }
+  #arbre.filtre path.lignee { opacity: 1; stroke: var(--hl); stroke-width: 4; }
+  #zone, #frisezone { cursor: grab; user-select: none; -webkit-user-select: none; }
+  #zone.glisse, #frisezone.glisse, .glisse .carte, .glisse .pt, .glisse .barre { cursor: grabbing; }
+  #racines { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  #racines button { height: 36px; padding: 0 12px; font: 500 14px var(--sans); color: var(--muted); background: var(--surface); border: 0; cursor: pointer; }
+  #racines button[aria-pressed="true"] { background: var(--f); color: var(--surface); }
+  #vues { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  #vues button { height: 36px; padding: 0 14px; font: 500 14px var(--sans); color: var(--muted); background: var(--surface); border: 0; cursor: pointer; }
+  #vues button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+  #cartezone { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+  #carte { height: 72vh; min-height: 320px; background: var(--bg); z-index: 0; }
+  #carte .leaflet-control-layers { font: 13px var(--sans); }
+  .lieu-label { background: var(--surface); color: var(--ink); border: 1px solid var(--line); box-shadow: none; font: 500 12px var(--sans); padding: 1px 6px; }
+  .lieu-label::before { display: none; }
+  #frisezone { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface);
+    overflow: auto; max-height: 78vh; touch-action: pan-x pan-y; overscroll-behavior: contain; }
+  #frise { display: block; }
+  #frise text { font-family: var(--sans); fill: var(--ink); }
+  #frise .axe { fill: var(--muted); font-size: 12px; }
+  #frise .grille { stroke: var(--line); }
+  #frise .repere { stroke: var(--fd); stroke-dasharray: 3 4; opacity: .7; }
+  #frise .rep { fill: var(--fd); font-size: 11px; }
+  #frise .barre { cursor: pointer; }
+  #frise .barre rect { fill: var(--muted); }
+  #frise .barre.M rect { fill: var(--m); } #frise .barre.F rect { fill: var(--f); }
+  #frise .barre.inc rect { fill: none; stroke: var(--muted); stroke-dasharray: 4 3; }
+  #frise .barre.inc.M rect { stroke: var(--m); } #frise .barre.inc.F rect { stroke: var(--f); }
+  #frise .barre text { font-size: 12px; }
+  #frise .barre.hors { opacity: .32; }
+  #frise .barre.sel text { font-weight: 500; }
+  #frise .barre.sel rect { stroke: var(--ink); stroke-width: 2; stroke-dasharray: none; }
+  #lieuInfo { padding: 10px 14px 12px; border-top: 1px solid var(--line); font-size: 14px; max-height: 32vh; overflow: auto; }
+  .rang { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 6px 10px; margin: 4px 0;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; text-decoration: none !important; color: var(--ink) !important; }
+  .rang:hover { border-color: var(--accent); }
+  .rang small { font: 12px var(--sans); color: var(--muted); text-align: right; flex: none; max-width: 50%; }
+  .bouton { display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; margin-top: 8px; border-radius: 8px; background: var(--accent);
+    color: var(--surface) !important; font: 500 14px var(--sans); text-decoration: none !important; cursor: pointer; }
+  #recherche { position: relative; flex: 1 1 200px; max-width: 320px; }
+  #cherche { width: 100%; height: 36px; padding: 0 12px; font: 14px var(--sans); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  #resultats { position: absolute; left: 0; right: 0; top: 40px; z-index: 30; padding: 6px 8px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); max-height: 60vh; overflow: auto; }
+  #fiche dd a { display: inline-block; padding: 3px 0; }
+  #pied { padding: 8px max(16px, env(safe-area-inset-left, 0px)) 16px; font: 13px var(--sans); color: var(--muted); }
+  #pied a { color: var(--accent); }
+  #lieuInfo h3 { margin: 0 0 4px; font: 500 14px var(--sans); }
+  #lieuInfo ul { margin: 0; padding-left: 18px; }
+  #lieuInfo a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  #lieuInfo .aide { color: var(--muted); font: 13px var(--sans); }
+  button, .rang, .carte { touch-action: manipulation; }
+  button:focus-visible, #fiche a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 800px) {
+    h1 { font-size: 20px; }
+    main { display: block; padding-block: 0 12px; }
+    #zone { height: 72vh; }
+    #cadre { margin: 12px; }
+    #legende { font-size: 12px; }
+    #fiche { position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 52vh; z-index: 20;
+      border-radius: 14px 14px 0 0; border-bottom: 0; box-shadow: 0 -6px 24px rgba(0, 0, 0, .25);
+      padding: 16px max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+    #fermer { display: block; width: 44px; height: 44px; }
+    header { padding-block: 12px 2px; } #resume { display: none; }
+    #barre { gap: 8px; }
+    #vues button, #racines button, #zoom button, #metier { height: 44px; }
+    #filtre { flex-basis: 100%; min-width: 0; } #metier { flex: 1; min-width: 0; width: 100%; font-size: 16px; }
+    #zoom button { min-width: 44px; }
+    #vues button, #racines button { padding: 0 10px; }
+    #legende { display: none; }
+    #zmoins, #zplus { display: none; }
+    #zoom button { font-size: 13px; padding: 0 10px; }
+    #cherche { height: 44px; font-size: 16px; } #recherche { max-width: none; flex-basis: 100%; }
+    .fcarte { width: calc(50vw - 40px); } #famillezone { max-height: none; padding: 12px; }
+    #zone { height: 62vh; } #carte { height: 52vh; min-height: 260px; } #frisezone { max-height: 62vh; }
+    #fiche dd a { padding: 8px 0; }
+    #fiche { max-height: 58vh; }
+    /* Mobile compact : onglets en bas, boutons flottants, arbre sur toute la hauteur */
+    body { padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px)); }
+    header { padding-block: 10px 0; }
+    h1 { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+    #barre { gap: 6px; padding-block: 8px 6px; }
+    #vues { position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; display: flex; margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0;
+      background: var(--surface); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px); box-shadow: 0 -2px 12px rgba(0, 0, 0, .08); }
+    #vues button { flex: 1 1 auto; height: 56px; border-radius: 0; padding: 0 3px; font-size: 15px; }
+    #racines button { height: 40px; padding: 0 9px; font-size: 14px; }
+    #zoom { display: contents; }
+    #zfrat { height: 40px; }
+    #ztout, #zmoi { position: fixed; right: max(14px, env(safe-area-inset-right, 0px)); z-index: 12; width: 48px; height: 48px !important; min-width: 0; padding: 0 !important;
+      border-radius: 50%; font-size: 0 !important; box-shadow: 0 2px 10px rgba(0, 0, 0, .2); background: var(--surface); }
+    body[data-vue="carte"] #ztout, body[data-vue="carte"] #zmoi { display: none; }
+    #ztout { bottom: calc(128px + env(safe-area-inset-bottom, 0px)); }
+    #zmoi { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+    #ztout::before { content: "⤢"; font-size: 22px; line-height: 48px; }
+    #zmoi::before { content: "◎"; font-size: 22px; line-height: 48px; }
+    #filtre { flex: 1 1 40%; min-width: 0; } #metier { height: 42px; font-size: 15px; }
+    #recherche { flex: 1 1 55%; min-width: 0; } #cherche { height: 42px; }
+    /* Écran unique : la page ne défile pas, seule la vue active défile ou se déplace */
+    html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+    body { box-sizing: border-box; height: 100dvh; display: flex; flex-direction: column; }
+    header, #barre { flex: none; }
+    main { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; padding-block: 0 8px; }
+    #zone, #frisezone, #famillezone, #cartezone, #recitszone, #rechercheszone { width: auto; min-width: 0; }
+    #recitszone, #rechercheszone { flex: 1; min-height: 0; max-height: none !important; padding: 14px 14px 20px; }
+    .rq-filtres { position: static; } .rq-sec { scroll-margin-top: 0; } .rq-filtres input, .rq-filtres select { height: 42px; font-size: 16px; } .rq-filtres input { max-width: none; flex-basis: 100%; } .rq-filtres select { flex: 1 1 100%; }
+    #vues button { font-size: 14px !important; }
+    #zone, #frisezone, #famillezone, #cartezone { flex: 1; min-height: 0; height: auto !important; max-height: none !important; }
+    #cartezone { display: flex; flex-direction: column; }
+    #cartezone[hidden] { display: none; }
+    #carte { flex: 1; height: auto; min-height: 0; }
+    #lieuInfo { flex: none; max-height: 30%; }
+    #famillezone { overflow: auto; }
+    #pied { display: none; }
+    body[data-vue="famille"] #pied { display: block; flex: none; padding-block: 4px 8px; }
+    @media (display-mode: standalone) { header { padding-top: calc(env(safe-area-inset-top, 0px) + 6px); } }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titre">Arbre généalogique</h1>
+  <p id="resume"></p>
+</header>
+<div id="barre">
+  <div id="vues">
+    <button type="button" data-vue="arbre" aria-pressed="true">Arbre</button>
+    <button type="button" data-vue="carte" aria-pressed="false">Carte</button>
+    <button type="button" data-vue="frise" aria-pressed="false">Frise</button>
+    <button type="button" data-vue="famille" aria-pressed="false">Famille</button>
+    <button type="button" data-vue="recits" aria-pressed="false">Récits</button>
+    <button type="button" data-vue="recherches" aria-pressed="false">Recherches</button>
+  </div>
+  <div id="racines" class="seg"></div>
+  <div id="zoom">
+    <button id="zmoins" type="button" aria-label="Dézoomer">−</button>
+    <button id="zplus" type="button" aria-label="Zoomer">+</button>
+    <button id="ztout" type="button">Tout voir</button>
+    <button id="zmoi" type="button">Centrer</button>
+    <button id="zfrat" type="button" aria-pressed="false" title="Afficher sous chaque ancêtre ses frères et sœurs, leurs conjoints et ses autres unions">Proches</button>
+  </div>
+  <div id="filtre"><select id="metier" aria-label="Mettre en évidence des personnes"></select><span id="metierinfo"></span></div>
+  <div id="recherche"><input id="cherche" type="search" placeholder="Rechercher…" autocomplete="off" aria-label="Rechercher une personne"><div id="resultats" hidden></div></div>
+  <div id="legende"></div>
+</div>
+<main>
+  <div id="zone"><div id="cadre"><div id="arbre"></div></div></div>
+  <div id="cartezone" hidden>
+    <div id="carte" role="application" aria-label="Carte des lieux de la famille"></div>
+    <div id="lieuInfo"></div>
+  </div>
+  <div id="famillezone" hidden></div>
+  <div id="recitszone" hidden></div>
+  <div id="rechercheszone" hidden></div>
+  <div id="frisezone" hidden><svg id="frise" role="img" aria-label="Frise chronologique des ancêtres"></svg></div>
+  <aside id="fiche" hidden></aside>
+</main>
+<footer id="pied"><a href="arbre.ged" download>Télécharger l'arbre (fichier GEDCOM)</a> <span>· lisible par Geneanet, Gramps, Heredis, MyHeritage…</span></footer>
+<script src="famille.js"></script>
+<script src="lieux.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="actes.js"></script>
+<script src="recits.js"></script>
+<script src="vues.js"></script>
+<script>
+(function () {
+  const P = FAMILLE.personnes; let racine = FAMILLE.racine, conjoint = null, couple = true;
+  const W = 210, H = 70, COL = 250, ROW = 82, TOP = 26, SROW = 44;
+  let fratries = false; try { fratries = localStorage.getItem("fratries") === "1"; } catch (e) {}
+  const anS = e => { const m = e && e.date && String(e.date).match(/\d{4}/); return m ? +m[0] : 9999; };
+  const sibs = id => fratrie(id).filter(k => !pos[k]).sort((a, b) => anS(P[a].naissance) - anS(P[b].naissance));
+  // Conjoints hors de l'arbre : ceux d'une personne (dans les deux sens du lien « conjoint »).
+  const conjs = id => [...new Set([P[id].conjoint, ...Object.keys(P).filter(x => P[x].conjoint === id)])].filter(x => x && P[x] && !pos[x]);
+  // Lignes affichées sous une case en mode fratries : autres conjoints de la personne, puis chaque frère ou sœur suivi de ses conjoints.
+  // Pour les parents de la personne centrale (génération 1), on ajoute sous chaque oncle ou tante ses enfants : les cousins germains.
+  const enfsHors = k => Object.keys(P).filter(c => (P[c].pere === k || P[c].mere === k) && !pos[c]).sort((a, b) => anS(P[a].naissance) - anS(P[b].naissance));
+  const lignesFrat = id => [...conjs(id).map(k => ({ k, conj: true, autre: true })), ...sibs(id).flatMap(k => [{ k }, ...conjs(k).map(c => ({ k: c, conj: true })), ...(pos[id] && pos[id].gen === rootGen + 1 ? enfsHors(k).map(c => ({ k: c, enfant: true })) : [])])];
+  const GENS = ["Moi", "Parents", "Grands-parents", "Arrière-grands-parents", "Trisaïeuls", "Quadrisaïeuls"];
+  const NIV = {
+    A: ["Établi sur document", "Lu directement sur un acte d'état civil, un recensement ou le fichier officiel des décès."],
+    B: ["Témoignage familial", "Repose sur ce que la famille a indiqué, recoupé au mieux avec des sources officielles."],
+    C: ["Source d'un tiers, non relue", "Repris d'un arbre publié par un autre généalogiste ou d'une publication, sans relecture des actes."],
+    D: ["Hypothèse", "Déduction ou lecture incertaine, à confirmer."],
+  };
+  const $ = id => document.getElementById(id);
+  const arbre = $("arbre"), cadre = $("cadre"), zone = $("zone"), fiche = $("fiche");
+  const mobile = () => matchMedia("(max-width: 800px)").matches;
+  const pos = {}; let rootGen = 0, ligne = 0, maxGen = 0, z = 1, LW = 0, LH = 0, courant = racine, vue = "arbre", zc = 1, lieuVu = null, lieuxVus = [];
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const nomComplet = p => p.inconnu ? (p.role || "Inconnu")
+    : `${p.prenoms} ${p.nom}` + (p.nomNaissance ? ` (née ${p.nomNaissance})` : "") + (p.usuel && p.usuel !== p.prenoms.split(" ")[0] ? `, ${p.sexe === "F" ? "dite" : "dit"} ${p.usuel}` : "");
+  const annee = e => { if (!e || !e.date) return ""; const m = /^\d\d\/\d\d\/(\d{4})/.exec(e.date); return m ? m[1] : e.date; };
+  const dates = p => p.inconnu ? "à identifier" : p.vivant ? "personne vivante"
+    : [p.naissance && "° " + annee(p.naissance), p.deces && "† " + annee(p.deces)].filter(Boolean).join("  ") || "dates inconnues";
+  // Prénom affiché : le prénom d'usage s'il est connu ; sinon le premier prénom, ou les deux premiers quand le premier est un prénom « de dévotion » très répandu (Marie, Jean, Joseph…), pour distinguer frères et sœurs sans deviner le prénom d'usage.
+  const DEVOTION = new Set(["Marie", "Jeanne", "Jean", "Joseph", "Anne", "María", "Maria", "Giovanni", "José"]);
+  const aHist = id => !!((window.FAMILLE_RECITS || {}).vies || {})[id];
+  const HIST = `<span class="hist" title="A une histoire" aria-label="A une histoire">📖</span>`;
+  const prenomDe = p => { if (!p || !p.prenoms) return ""; if (p.usuel) return p.usuel; const w = p.prenoms.split(" "); return w.length > 1 && DEVOTION.has(w[0]) ? w[0] + " " + w[1] : w[0]; };
+  const fratrie = id => Object.keys(P).filter(k => k !== id && ((P[id].pere && P[k].pere === P[id].pere) || (P[id].mere && P[k].mere === P[id].mere)));
+  const pastille = n => n && NIV[n] ? `<span class="niv ${n}" title="${esc(NIV[n][0])}"><i></i></span>` : "";
+  // Preuve d'un lien de parenté (liens.pere, liens.mere, union.lien) : voir outils/DONNEES.md, « Liens de parenté ».
+  const NIV_LIEN = { A: "Lien établi", B: "Lien probable", C: "Lien non vérifié", D: "Lien douteux" };
+  const PREUVES = { directe: "une source lue le dit", indirecte: "déduit de plusieurs indices", contredite: "sources contradictoires", "témoignage": "témoignage familial", arbre: "arbre ou index en ligne, non relu" };
+  const lienDe = (id, role) => { const l = P[id] && P[id].liens; return l && !Array.isArray(l) ? l[role] : null; };
+  const lienFaible = (enf, par) => { const p = P[enf], L = p && lienDe(enf, p.pere === par ? "pere" : "mere"); return !!(L && (L.fiab === "C" || L.fiab === "D")); };
+
+  // Arbre ascendant : chaque feuille occupe une ligne, un enfant se place au milieu de ses parents.
+  // Un ancêtre atteint par deux chemins (mariage entre cousins) n'est placé qu'une fois, lors du premier passage ;
+  // « via » retient l'enfant par lequel on y est arrivé, pour dessiner autrement le second lien.
+  function placer(id, gen, sosa, cote, via) {
+    const p = P[id]; maxGen = Math.max(maxGen, gen);
+    const nouveaux = [p.pere, p.mere].filter(x => x && P[x] && !pos[x]);
+    const y = nouveaux.length
+      ? nouveaux.map(x => placer(x, gen + 1, sosa ? sosa * 2 + (x === p.mere ? 1 : 0) : 0, cote, id)).reduce((a, b) => a + b, 0) / nouveaux.length
+      : ligne++ * ROW;
+    pos[id] = { x: gen * COL, y: y + TOP, gen, sosa, cote, via };
+    // Mode « fratries » : on réserve sous la case la place de ses frères et sœurs, en repoussant les familles suivantes.
+    if (fratries) { const n = lignesFrat(id).length; if (n) ligne = Math.max(ligne, Math.ceil((y + H + 10 + n * SROW + 6) / ROW)); }
+    return y;
+  }
+  // Ascendants de la personne centrale (elle comprise) : seuls ceux-là comptent pour les implexes (en mode plusieurs racines,
+  // les cousins et leurs parents sont aussi dans l'arbre sans être des ancêtres).
+  let asc = new Set();
+  const ascendants = r => { const a = new Set(), pile = [r]; while (pile.length) { const x = pile.pop(); if (!x || !P[x] || a.has(x)) continue; a.add(x); pile.push(P[x].pere, P[x].mere); } return a; };
+  const enfantsArbre = id => Object.keys(pos).filter(k => pos[k].cote && asc.has(k) && (P[k].pere === id || P[k].mere === id));
+  // Implexe : où les deux lignées issues d'un ancêtre commun se rejoignent (le couple de cousins), et à quel degré.
+  function cheminVers(cible, x, acc = []) {
+    if (!x || !P[x]) return null;
+    acc = [...acc, x]; if (x === cible) return acc;
+    return cheminVers(cible, P[x].pere, acc) || cheminVers(cible, P[x].mere, acc);
+  }
+  function rencontre(anc, desc) {
+    const [a, b] = desc.slice(0, 2).map(d => cheminVers(d, racine));
+    if (!a || !b) return "";
+    let i = 0; while (a[i] === b[i]) i++;
+    const ea = a[i], eb = b[i], n = a.length - i, m = b.length - i;
+    if (!ea || !eb) return "";
+    if (n !== m) return ` : ses descendants ${lien(ea)} et ${lien(eb)}, parents par lui à des générations décalées (${Math.min(n, m)} et ${Math.max(n, m)} générations), se sont mariés`;
+    const deg = { 1: "frère et sœur", 2: "cousins germains", 3: "cousins issus de germains", 4: "petits-cousins au 4e degré" }[n] || `cousins éloignés (${n} générations sous l'ancêtre commun)`;
+    return n === 1 ? "" : ` : ses descendants ${lien(ea)} et ${lien(eb)}, ${deg}, se sont mariés`;
+  }
+  // Mode « couple » : l'ascendance de la personne centrale part vers la droite, celle de son conjoint vers la gauche.
+  function construire() {
+    for (const k in pos) delete pos[k];
+    ligne = 0; maxGen = 0;
+    conjoint = P[racine].conjoint || Object.keys(P).find(k => P[k].conjoint === racine);
+    // Plusieurs racines (partage des cousins : FAMILLE.racines, chaque entrée « id » ou { id, colonne }) : plusieurs
+    // générations de départ, chacune dans sa colonne (0 = la plus jeune), chacun relié à ses parents.
+    const entrees = racine === FAMILLE.racine ? (FAMILLE.racines || []).map(e => typeof e === "string" ? { id: e, colonne: 0 } : e).filter(e => e && P[e.id]) : [];
+    const multi = entrees.some(e => e.id !== racine);
+    const colDe = id => { const e = entrees.find(x => x.id === id); return e ? e.colonne || 0 : 0; };
+    rootGen = multi ? colDe(racine) : 0;
+    placer(racine, rootGen, 1, 1);
+    if (multi) {
+      if (conjoint && P[conjoint]) {
+        pos[conjoint] = { x: rootGen * COL, y: 0, gen: rootGen };
+        const n = fratries ? lignesFrat(racine).length : 0;
+        pos[conjoint].y = pos[racine].y + (n ? H + 10 + n * SROW + 10 : ROW);
+        ligne = Math.max(ligne, Math.ceil((pos[conjoint].y - TOP + H + 10) / ROW));
+      }
+      for (const e of entrees) if (!pos[e.id]) placer(e.id, e.colonne || 0, 0, 1);
+    }
+    asc = ascendants(racine);
+    const droite = maxGen; let bas = ligne, decal = 0, gauche = -1;
+    if (multi) {
+      // Regroupe les racines près de la personne centrale : sa colonne (elle, son conjoint, les autres racines de la
+      // colonne, et les parents des racines plus jeunes), puis les plus jeunes à côté de leurs parents, puis les
+      // oncles et tantes (non ascendants) à côté de leurs enfants. Ces colonnes ne contiennent rien d'autre.
+      const pas = id => Math.max(ROW, H + 10 + (fratries ? lignesFrat(id).length * SROW + 10 : 0));
+      const parentsA = (id, g) => [P[id].pere, P[id].mere].filter(x => x && pos[x] && pos[x].gen === g);
+      const colonne = [racine, ...(conjoint && pos[conjoint] ? [conjoint] : [])];
+      const ajoute = id => { if (id && pos[id] && !colonne.includes(id)) colonne.push(id); };
+      for (const e of entrees) {
+        let ids = [e.id];
+        for (let g = e.colonne || 0; g < rootGen; g++) ids = ids.flatMap(i => parentsA(i, g + 1).sort((x, y) => !!(pos[P[y].pere] || pos[P[y].mere]) - !!(pos[P[x].pere] || pos[P[x].mere])));
+        ids.forEach(i => { ajoute(i); for (const c of conjs(i).concat(Object.keys(pos).filter(k => pos[k].gen === rootGen && !pos[k].cote && P[k].conjoint === i))) ajoute(c); });
+        // conjoints placés comme parents d'une racine plus jeune
+        for (const k of Object.keys(pos)) if (pos[k].gen === rootGen && !colonne.includes(k) && ids.some(i => Object.keys(pos).some(c => pos[c].gen < rootGen && [P[c].pere, P[c].mere].includes(i) && [P[c].pere, P[c].mere].includes(k)))) ajoute(k);
+      }
+      let y = pos[racine].y;
+      for (const id of colonne) { pos[id].y = y; y += pas(id); }
+      // plus jeunes : chacun à hauteur de son parent, sans chevauchement
+      for (let g = rootGen - 1; g >= 0; g--) {
+        let bas = -Infinity;
+        const ids = Object.keys(pos).filter(k => pos[k].gen === g).sort((a, b) => Math.min(...parentsA(a, g + 1).map(p => pos[p].y)) - Math.min(...parentsA(b, g + 1).map(p => pos[p].y)) || anS(P[a].naissance) - anS(P[b].naissance));
+        for (const id of ids) { const yp = Math.min(...parentsA(id, g + 1).map(p => pos[p].y)); pos[id].y = Math.max(isFinite(yp) ? yp : bas, bas); bas = pos[id].y + pas(id); }
+      }
+      // oncles et tantes : colonne rootGen + 1, hors ascendants, à hauteur de leurs enfants
+      const oncles = Object.keys(pos).filter(k => pos[k].gen === rootGen + 1 && !asc.has(k));
+      const pere = [P[racine].pere, P[racine].mere].find(x => x && pos[x]);
+      let bas2 = pere ? pos[pere].y + ROW : -Infinity;
+      oncles.sort((a, b) => Math.min(...Object.keys(pos).filter(c => [P[c].pere, P[c].mere].includes(a)).map(c => pos[c].y)) - Math.min(...Object.keys(pos).filter(c => [P[c].pere, P[c].mere].includes(b)).map(c => pos[c].y)));
+      for (const o of oncles) { const yc = Math.min(...Object.keys(pos).filter(c => pos[c].gen === rootGen && [P[c].pere, P[c].mere].includes(o)).map(c => pos[c].y)); pos[o].y = Math.max(isFinite(yc) ? yc : bas2, bas2); bas2 = pos[o].y + pas(o); }
+      const minY = Math.min(...Object.values(pos).map(a => a.y));
+      if (minY < TOP) for (const k in pos) pos[k].y += TOP - minY;
+      maxGen = droite;
+      LW = droite * COL + W; LH = Math.max(...Object.values(pos).map(a => a.y)) + H;
+    } else if (couple && conjoint && P[conjoint]) {
+      ligne = 0; maxGen = 0;
+      placer(conjoint, 0, 0, -1);
+      gauche = maxGen; decal = (gauche + 1) * COL;
+      const dy = pos[racine].y - pos[conjoint].y;
+      let minY = Infinity, maxY = 0;
+      for (const k in pos) { const a = pos[k]; if (a.cote < 0) { a.y += dy; a.x = -(a.gen + 1) * COL; } minY = Math.min(minY, a.y); }
+      for (const k in pos) { const a = pos[k]; a.y += TOP - minY; a.x += decal; maxY = Math.max(maxY, a.y); }
+      maxGen = Math.max(droite, gauche);
+      LW = decal + droite * COL + W; LH = maxY + H;
+    } else {
+      if (conjoint && P[conjoint]) {
+        // Le conjoint se place sous la case centrale ; en mode « proches », sous les frères et sœurs de celle-ci.
+        pos[conjoint] = { x: 0, y: 0, gen: 0 };
+        const n = fratries ? lignesFrat(racine).length : 0;
+        pos[conjoint].y = pos[racine].y + (n ? H + 10 + n * SROW + 10 : ROW);
+        bas = Math.max(bas, (pos[conjoint].y - TOP) / ROW + 1); }
+      maxGen = droite;
+      LW = droite * COL + W; LH = TOP + (bas - 1) * ROW + H;
+    }
+    arbre.style.width = LW + "px"; arbre.style.height = LH + "px";
+    let chemins = "";
+    for (const id in pos) {
+      const p = P[id], a = pos[id];
+      if (!a.cote) continue;
+      for (const par of [p.pere, p.mere]) {
+        if (!par || !pos[par]) continue;
+        const b = pos[par], g = a.cote < 0, x1 = g ? a.x : a.x + W, x2 = g ? b.x + W : b.x, y1 = a.y + H / 2, y2 = b.y + H / 2, xm = (x1 + x2) / 2;
+        const cl = [b.via && b.via !== id && asc.has(id) ? "implexe" : "", lienFaible(id, par) ? "faible" : ""].filter(Boolean).join(" ");
+        chemins += `<path data-a="${id}" data-b="${par}"${cl ? ` class="${cl}"` : ""} d="M${x1} ${y1}H${xm}V${y2}H${x2}"/>`;
+      }
+    }
+    if (conjoint && pos[conjoint]) {
+      const a = pos[racine], c = pos[conjoint];
+      chemins += pos[conjoint].cote
+        ? `<path d="M${c.x + W} ${c.y + H / 2}H${a.x}" stroke-dasharray="3 3"/>`
+        : `<path d="M${a.x + 24} ${a.y + H}V${c.y}" stroke-dasharray="3 3"/>`;
+    }
+    let html = `<svg width="100%" height="100%">${chemins}</svg>`;
+    for (let g = 0; g <= droite; g++)
+      html += `<div class="gen" style="left:${decal + g * COL}px">${rootGen ? (g < rootGen ? "Leurs enfants" : g === rootGen ? "Cousins germains" : GENS[g - rootGen] || "Génération " + (g - rootGen + 1)) : GENS[g] || "Génération " + (g + 1)}</div>`;
+    for (let g = 0; g <= gauche; g++)
+      html += `<div class="gen" style="left:${decal - (g + 1) * COL}px">${GENS[g] || "Génération " + (g + 1)}</div>`;
+    for (const id in pos) {
+      const p = P[id], a = pos[id];
+      const commun = enfantsArbre(id).length > 1;
+      html += `<button class="carte ${p.sexe || ""}${p.inconnu ? " inconnu" : ""}${commun ? " commun" : ""}" data-id="${id}" style="left:${a.x}px;top:${a.y}px">
+      <span class="n">${aHist(id) ? HIST : ""}${esc(p.inconnu ? (p.role || "Inconnu") : prenomDe(p) + " " + (p.nomNaissance || p.nom))}</span>
+      <span class="d">${commun ? "Ancêtre commun · " : a.sosa ? "Sosa " + a.sosa + " · " : ""}${esc(dates(p))}</span>${p.metier ? `<span class="mt">${esc(p.metier)}</span>` : ""}${pastille(p.fiab)}${fratrie(id).length ? `<span class="fr" title="Frères et sœurs connus">+${fratrie(id).length} fratrie</span>` : ""}</button>`;
+    }
+    if (fratries) {
+      let basMax = LH, frat = "", liens = "";
+      for (const id in pos) {
+        const a = pos[id]; if (!a.cote && id !== conjoint) continue;
+        const ss = lignesFrat(id); if (!ss.length) continue;
+        const x0 = a.x + 14;
+        let dernier = 0;
+        ss.forEach(({ k, conj, autre, enfant }, i) => {
+          const y = a.y + H + 10 + i * SROW, q = P[k], x = a.x + (enfant ? 64 : conj && !autre ? 44 : 24);
+          const nom = prenomDe(q) + " " + (q.nomNaissance || q.nom);
+          frat += `<button class="carte frere ${q.sexe || ""}${conj ? " conj" : ""}${enfant ? " enfant" : ""}" data-id="${k}" style="left:${x}px;top:${y}px" title="${conj ? (autre ? "Autre conjoint" : "Conjoint") : enfant ? "Enfant (cousin ou cousine germaine)" : "Frère ou sœur"}">
+            <span class="n">${conj ? "× " : ""}${aHist(k) ? HIST : ""}${esc(nom)}</span><span class="d">${esc(dates(q))}${autre ? " · autre union" : ""}</span></button>`;
+          if (enfant) liens += `<path class="frat" d="M${a.x + 54} ${y - 6}V${y + 18}H${x}"/>`;
+          else if (!conj || autre) { liens += `<path class="frat" d="M${x0} ${y + 18}H${x}"/>`; dernier = y; }
+          else liens += `<path class="frat" d="M${a.x + 34} ${y - 6}V${y + 18}H${x}"/>`;
+          basMax = Math.max(basMax, y + 38);
+        });
+        liens += `<path class="frat" d="M${x0} ${a.y + H}V${dernier + 18}"/>`;
+      }
+      html = html.replace("</svg>", liens + "</svg>") + frat;
+      if (basMax > LH) { LH = basMax + 10; arbre.style.height = LH + "px"; }
+    }
+    arbre.innerHTML = html;
+    appliquerMetier();
+  }
+
+  // Filtre « Mettre en évidence » : chaque personne reçoit des critères (métier, pays et région de naissance,
+  // siècle, parcours, fiabilité). Les cases qui ont le critère choisi ressortent, les autres s'estompent,
+  // et un trait parent-enfant s'épaissit quand les deux partagent le critère (une « lignée »).
+  const DOM = FAMILLE.domaines || {};
+  let domaine = "";
+  const PAYS = [[/Italie/, "Italie"], [/Espagne/, "Espagne"], [/Portugal/, "Portugal"], [/Belgique/, "Belgique"], [/Allemagne/, "Allemagne"]]; // à compléter (par ex. une région étrangère : « Toscane, Italie »)
+  // Régions de naissance proposées par le filtre : d'après le département entre parenthèses (« Tours (Indre-et-Loire) »)
+  // ou le pays. À adapter à sa famille : l'ordre compte (la première règle qui correspond l'emporte).
+  const REGIONS = [
+    [/\((Nord|Pas-de-Calais|Somme|Aisne|Oise)\)/, "Hauts-de-France"],
+    [/\((Paris|Seine|Seine-et-Oise|Yvelines|Essonne|Hauts-de-Seine|Seine-Saint-Denis|Val-de-Marne|Val-d'Oise|Seine-et-Marne)\)|^Paris/, "Île-de-France"],
+    [/\((Manche|Calvados|Orne|Eure|Seine-Maritime|Seine-Inférieure)\)/, "Normandie"],
+    [/\((Ille-et-Vilaine|Finistère|Morbihan|Côtes-d'Armor|Côtes-du-Nord|Loire-Inférieure)\)/, "Bretagne"],
+    [/\((Indre-et-Loire|Loir-et-Cher|Loiret|Cher|Indre|Eure-et-Loir)\)/, "Centre-Val de Loire"],
+    [/\((Loire-Atlantique|Maine-et-Loire|Mayenne|Sarthe|Vendée)\)/, "Pays de la Loire"],
+    [/\((Gironde|Landes|Pyrénées-Atlantiques|Basses-Pyrénées|Dordogne|Lot-et-Garonne|Charente|Charente-Maritime|Vienne|Deux-Sèvres|Haute-Vienne|Corrèze|Creuse)\)/, "Nouvelle-Aquitaine"],
+    [/\((Haute-Garonne|Hérault|Gard|Aude|Lot|Tarn|Tarn-et-Garonne|Gers|Ariège|Aveyron|Lozère|Hautes-Pyrénées|Pyrénées-Orientales)\)/, "Occitanie"],
+    [/\((Alpes-Maritimes|Var|Bouches-du-Rhône|Vaucluse|Alpes-de-Haute-Provence|Basses-Alpes|Hautes-Alpes)\)/, "Provence-Alpes-Côte d'Azur"],
+    [/\((Rhône|Isère|Savoie|Haute-Savoie|Loire|Ain|Drôme|Ardèche|Puy-de-Dôme|Allier|Cantal|Haute-Loire)\)/, "Auvergne-Rhône-Alpes"],
+    [/\((Moselle|Meurthe-et-Moselle|Meuse|Vosges|Bas-Rhin|Haut-Rhin|Marne|Haute-Marne|Ardennes|Aube)\)/, "Grand Est"],
+    [/\((Côte-d'Or|Saône-et-Loire|Nièvre|Yonne|Doubs|Jura|Haute-Saône|Territoire de Belfort)\)/, "Bourgogne-Franche-Comté"],
+    [/Italie/, "Italie"], [/Espagne/, "Espagne"], [/Portugal/, "Portugal"], [/Belgique/, "Belgique"], [/Allemagne/, "Allemagne"]];
+  const anF = e => { const m = e && (e.date || "").match(/1[5-9]\d\d|20\d\d/); return m ? +m[0] : null; };
+  const paysDe = l => !l ? null : (PAYS.find(([r]) => r.test(l)) || [, "France"])[1];
+  const ROMAINS = { 15: "XVIe", 16: "XVIIe", 17: "XVIIIe", 18: "XIXe", 19: "XXe" };
+  const enFrance = l => l && paysDe(l) === "France";
+  const communs = new Set();
+  (function () { const vus = new Map(); (function up(id) { if (!id || !P[id]) return; vus.set(id, (vus.get(id) || 0) + 1); if (vus.get(id) > 1) { communs.add(id); return; } up(P[id].pere); up(P[id].mere); })(FAMILLE.racine); })();
+  function criteres(id) {
+    const p = P[id], c = new Set((p.domaines || []).map(d => "m:" + d));
+    const ln = p.naissance && p.naissance.lieu, pays = paysDe(ln);
+    if (pays) c.add("p:" + pays);
+    const r = ln && REGIONS.find(([re]) => re.test(ln)); if (r) c.add("r:" + r[1]);
+    const y = anF(p.naissance); if (y && ROMAINS[Math.floor(y / 100)]) c.add("s:" + Math.floor(y / 100));
+    if (pays && pays !== "France") {
+      const enfants = Object.keys(P).filter(k => P[k].pere === id || P[k].mere === id);
+      if (enFrance(p.deces && p.deces.lieu) || enFrance(p.mariage && p.mariage.lieu) || enfants.some(k => enFrance(P[k].naissance && P[k].naissance.lieu))) c.add("x:emigre");
+    }
+    const yd = anF(p.deces);
+    if ((y && yd && yd - y < 5) || /mort-né/i.test(p.prenoms || "")) c.add("x:jeune");
+    if (y && yd && yd - y >= 85) c.add("x:vieux");
+    if (communs.has(id)) c.add("x:commun");
+    if (p.fiab) c.add("f:" + p.fiab);
+    return c;
+  }
+  const CRIT = {}; for (const k in P) CRIT[k] = criteres(k);
+  const okMetier = id => !domaine || CRIT[id].has(domaine);
+  function remplirMetiers() {
+    const n = key => Object.keys(P).filter(k => CRIT[k].has(key)).length;
+    const opt = (key, label) => n(key) ? `<option value="${key}">${esc(label)} (${n(key)})</option>` : "";
+    const groupe = (titre, items) => { const o = items.map(([k, l]) => opt(k, l)).join(""); return o ? `<optgroup label="${esc(titre)}">${o}</optgroup>` : ""; };
+    $("metier").innerHTML = `<option value="">Mettre en évidence…</option>` +
+      groupe("Métier", Object.keys(DOM).map(d => ["m:" + d, DOM[d]])) +
+      groupe("Pays de naissance", ["France", "Italie", "Espagne", "Portugal", "Belgique", "Allemagne"].map(x => ["p:" + x, x])) +
+      groupe("Région de naissance", [...new Set(REGIONS.map(r => r[1]))].map(x => ["r:" + x, x])) +
+      groupe("Parcours", [["x:emigre", "Nés à l'étranger, installés en France"], ["x:commun", "Ancêtres communs (mariage entre cousins)"], ["x:jeune", "Morts avant 5 ans"], ["x:vieux", "Morts à 85 ans ou plus"]]) +
+      groupe("Siècle de naissance", Object.keys(ROMAINS).map(k => ["s:" + k, ROMAINS[k] + " siècle"])) +
+      groupe("Fiabilité", Object.keys(NIV).map(k => ["f:" + k, NIV[k][0]]));
+  }
+  function appliquerMetier() {
+    arbre.classList.toggle("filtre", !!domaine);
+    $("metier").classList.toggle("on", !!domaine);
+    let nb = 0, nl = 0;
+    arbre.querySelectorAll(".carte").forEach(c => { const m = !!domaine && okMetier(c.dataset.id); c.classList.toggle("match", m); if (m) nb++; });
+    arbre.querySelectorAll("path[data-a]").forEach(p => { const m = !!domaine && okMetier(p.dataset.a) && okMetier(p.dataset.b); p.classList.toggle("lignee", m); if (m) nl++; });
+    const hors = domaine ? Object.keys(P).filter(k => okMetier(k) && !pos[k]).length : 0;
+    const montrerMetier = domaine.startsWith("m:");
+    arbre.classList.toggle("avecmetier", montrerMetier);
+    $("metierinfo").textContent = domaine ? `${nb} dans l'arbre${nl ? `, ${nl} lien${nl > 1 ? "s" : ""} parent-enfant` : ""}${hors ? ` · ${hors} hors de l'arbre (proches)` : ""}` : "";
+  }
+  remplirMetiers();
+  // Cadre la vue sur les personnes mises en évidence (sans grossir au-delà d'une lecture confortable).
+  function cadrerMetier() {
+    const ids = Object.keys(pos).filter(k => okMetier(k));
+    if (!ids.length || vue !== "arbre") return;
+    const xs = ids.map(k => pos[k].x), ys = ids.map(k => pos[k].y);
+    const x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) + W - x0, h = Math.max(...ys) + H - y0, m = cadre.offsetLeft;
+    zoomer(Math.min((zone.clientWidth - 2 * m) / w, (zone.clientHeight - 2 * m) / h, mobile() ? 0.6 : 0.85));
+    zone.scrollLeft = Math.max(0, (x0 + w / 2) * z + m - zone.clientWidth / 2);
+    zone.scrollTop = Math.max(0, (y0 + h / 2) * z + m - zone.clientHeight / 2);
+  }
+  $("metier").onchange = e => { domaine = e.target.value; appliquerMetier(); if (domaine) cadrerMetier(); if (vue === "frise") dessinerFrise(); };
+  construire();
+  $("legende").innerHTML = Object.keys(NIV).map(n => `<span class="niv ${n}"><i></i>${NIV[n][0]}</span>`).join("") + `<span class="niv" style="gap:6px"><i style="width:14px;height:10px;border-radius:2px;background:none;outline:2px dashed var(--fd)"></i>Ancêtre commun</span><span class="niv" style="gap:6px" title="Trait en pointillé : lien parent-enfant non vérifié (C) ou douteux (D) ; on ne remonte pas au-dessus tant qu'il n'est pas confirmé"><svg width="18" height="10" aria-hidden="true"><path d="M1 5H17" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="2 4" stroke-linecap="round"/></svg>Lien non confirmé</span><span class="niv" style="gap:4px"><span class="hist">📖</span>Histoire à lire</span>`;
+
+  // Zoom : l'arbre est mis à l'échelle, le cadre garde la taille visible pour que le défilement reste juste.
+  function zoomer(nz, cx, cy) {
+    nz = Math.min(1.6, Math.max(0.05, nz));
+    if (cx == null) { cx = zone.clientWidth / 2; cy = zone.clientHeight / 2; }
+    const m = cadre.offsetLeft, lx = (zone.scrollLeft + cx - m) / z, ly = (zone.scrollTop + cy - m) / z;
+    z = nz;
+    arbre.style.transform = `scale(${z})`;
+    cadre.style.width = LW * z + "px"; cadre.style.height = LH * z + "px";
+    zone.scrollLeft = lx * z + m - cx; zone.scrollTop = ly * z + m - cy;
+  }
+  function toutVoir() {
+    const m = cadre.offsetLeft * 2;
+    zoomer(Math.min((zone.clientWidth - m) / LW, (zone.clientHeight - m) / LH, 1));
+    zone.scrollLeft = 0; zone.scrollTop = 0;
+  }
+  function centrer(id, force) {
+    if (vue !== "arbre" || !pos[id]) return;
+    const a = pos[id], m = cadre.offsetLeft, x = a.x * z + m, y = a.y * z + m, w = W * z, h = H * z;
+    const basCache = mobile() && !fiche.hidden ? fiche.offsetHeight : 0;
+    // Sur téléphone, le volet recouvre le bas de l'arbre : on laisse de quoi faire défiler jusqu'aux dernières cases.
+    cadre.style.marginBottom = basCache ? basCache + "px" : "";
+    const hVis = Math.max(120, zone.clientHeight - Math.max(0, basCache - (innerHeight - zone.getBoundingClientRect().bottom)));
+    const vis = x >= zone.scrollLeft && x + w <= zone.scrollLeft + zone.clientWidth && y >= zone.scrollTop && y + h <= zone.scrollTop + hVis;
+    if (vis && !force) return;
+    // Plusieurs générations de départ : on montre la première colonne, la personne centrale en haut.
+    if (id === racine && rootGen > 0) { zone.scrollTop = Math.max(0, y - 20); zone.scrollLeft = 0; return; }
+    zone.scrollTop = y + h / 2 - hVis / 2;
+    zone.scrollLeft = couple && id === racine
+      ? Math.max(0, x - (COL - W) * z / 2 - zone.clientWidth / 2)
+      : Math.max(0, x - Math.min(40, zone.clientWidth / 6));
+  }
+  $("zplus").onclick = () => vue === "carte" ? zoomCarte(1) : vue === "frise" ? zoomFrise(zf * 1.3) : zoomer(z * 1.25);
+  $("zmoins").onclick = () => vue === "carte" ? zoomCarte(-1) : vue === "frise" ? zoomFrise(zf / 1.3) : zoomer(z / 1.25);
+  $("ztout").onclick = () => vue === "carte" ? toutVoirCarte() : vue === "frise" ? zoomFrise(0) : toutVoir();
+  $("zfrat").onclick = () => {
+    fratries = !fratries; try { localStorage.setItem("fratries", fratries ? "1" : "0"); } catch (e) {}
+    $("zfrat").setAttribute("aria-pressed", fratries);
+    construire(); zoomer(z); centrer(courant, true);
+    arbre.querySelectorAll(".carte").forEach(c => c.classList.toggle("actif", c.dataset.id === courant));
+  };
+  $("zfrat").setAttribute("aria-pressed", fratries);
+  $("zmoi").onclick = () => { montrer(racine, false); if (vue === "arbre") { zoomer(mobile() ? 0.8 : 0.7); centrer(racine, true); } };
+  zone.addEventListener("wheel", e => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = zone.getBoundingClientRect();
+    zoomer(z * Math.exp(-e.deltaY / 300), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // Pincement à deux doigts, commun à l'arbre, à la carte et à la frise.
+  const ecart = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  // Pendant le geste, on ne fait qu'agrandir visuellement le contenu (transformation CSS, fluide sur iPhone) ;
+  // le vrai zoom, avec redessin et recalage du défilement, n'est appliqué qu'une fois les doigts levés.
+  function pincable(el, cible, lire, appliquer, min, max) {
+    let p = null;
+    const finir = () => {
+      if (!p) return;
+      const q = p; p = null;
+      cible.style.transform = q.t0; cible.style.transformOrigin = q.o0; cible.style.willChange = "";
+      el.style.overflow = "";
+      if (q.nz) appliquer(q.nz, q.cx, q.cy);
+    };
+    el.addEventListener("touchstart", e => {
+      if (e.touches.length !== 2) return;
+      e.preventDefault();
+      const r = el.getBoundingClientRect(), c = cible.getBoundingClientRect(), t = e.touches;
+      const mx = (t[0].clientX + t[1].clientX) / 2, my = (t[0].clientY + t[1].clientY) / 2;
+      p = { d: ecart(t), z: lire(), cx: mx - r.left, cy: my - r.top, ox: mx - c.left, oy: my - c.top,
+        t0: cible.style.transform, o0: cible.style.transformOrigin, nz: 0 };
+      el.style.overflow = "hidden"; cible.style.willChange = "transform";
+    }, { passive: false });
+    el.addEventListener("touchmove", e => {
+      if (!p) return;
+      e.preventDefault();
+      if (e.touches.length !== 2) return;
+      const nz = Math.min(max, Math.max(min, p.z * ecart(e.touches) / p.d));
+      p.nz = nz;
+      cible.style.transformOrigin = `${p.ox}px ${p.oy}px`;
+      cible.style.transform = `scale(${nz / p.z})`;
+    }, { passive: false });
+    el.addEventListener("touchend", finir);
+    el.addEventListener("touchcancel", finir);
+    el.addEventListener("gesturestart", e => e.preventDefault());
+  }
+  // À la souris : cliquer-glisser pour déplacer la vue. Un glissement n'ouvre pas la case ou le lieu sous le pointeur.
+  function glissable(el) {
+    let d = null, bouge = false;
+    el.addEventListener("mousedown", e => { if (e.button) return; d = { x: e.clientX, y: e.clientY, l: el.scrollLeft, t: el.scrollTop }; bouge = false; });
+    addEventListener("mousemove", e => {
+      if (!d) return;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!bouge && Math.hypot(dx, dy) < 5) return;
+      bouge = true; el.classList.add("glisse");
+      el.scrollLeft = d.l - dx; el.scrollTop = d.t - dy;
+      e.preventDefault();
+    });
+    addEventListener("mouseup", () => { if (d) { d = null; el.classList.remove("glisse"); } });
+    el.addEventListener("click", e => { if (bouge) { e.stopPropagation(); e.preventDefault(); bouge = false; } }, true);
+    el.addEventListener("dragstart", e => e.preventDefault());
+  }
+  glissable(zone);
+  pincable(zone, cadre, () => z, zoomer, 0.05, 1.6);
+
+  const NATURES = { acte: "Acte lu", dossier: "Dossier d'archives", index: "Index", arbre: "Arbre en ligne", presse: "Presse", temoignage: "Témoignage", ouvrage: "Ouvrage", autre: "" };
+  const texteSource = s => typeof s === "string" ? s : (s && s.texte) || "";
+  function lien(id) { return id && P[id] ? `<a data-id="${id}">${esc(nomComplet(P[id]))}</a>` : "—"; }
+  // Une ligne par lien : qui, pastille et niveau du lien, nature de la preuve, renvois aux sources ; raisonnement repliable.
+  function blocLien(p, L, qui, cible) {
+    const nom = cible ? ` <span>${esc(prenomDe(P[cible]) + " " + (P[cible].nomNaissance || P[cible].nom || ""))}</span>` : "";
+    if (!L) return `<div class="lienp"><span class="qui">${qui}</span>${nom}<span>preuve du lien non précisée</span></div>`;
+    const refs = (L.src || []).map(n => { const so = p.sources && p.sources[n - 1], na = so && so.nature; return `<a href="#src-${n}" data-src="${n}" class="${na === "acte" || na === "dossier" ? "fort" : "faible"}" title="${esc(NATURES[na] || "Source")}">${n}</a>`; }).join(",");
+    return `<div class="lienp"><span class="qui">${qui}</span>${nom}<span class="niv ${L.fiab}" title="${esc(NIV_LIEN[L.fiab] || "")}"><i></i>${esc(NIV_LIEN[L.fiab] || L.fiab)}</span><span>· ${esc(PREUVES[L.preuve] || L.preuve)}${refs ? ` <sup>${refs}</sup>` : ""}</span></div>` +
+      (L.raisonnement ? `<details class="raison"><summary>Raisonnement</summary><p>${lierRecit(L.raisonnement)}</p></details>` : "");
+  }
+  function evt(e) { return e ? esc([e.date, e.lieu].filter(Boolean).join(", ")) + (e.age ? ` (${e.age} ans)` : "") : "—"; }
+  function montrer(id, ouvrir) {
+    const p = P[id]; courant = id;
+    arbre.querySelectorAll(".carte").forEach(c => c.classList.toggle("actif", c.dataset.id === id));
+    const enfants = Object.keys(P).filter(k => P[k].pere === id || P[k].mere === id);
+    let h = `<button id="fermer" type="button" aria-label="Fermer la fiche">×</button><h2>${esc(nomComplet(p))}</h2>
+      <div class="sous">${[p.inconnu ? "Personne à identifier" : (p.role || ""), pos[id] && pos[id].sosa ? "Sosa n° " + pos[id].sosa : ""].filter(Boolean).join(" · ")}</div>`;
+    if (p.photo) h += `<figure class="portrait"><img class="photo" src="${esc(p.photo)}" alt="Portrait de ${esc(nomComplet(p))}">${p.photoLegende ? `<figcaption>${esc(p.photoLegende)}</figcaption>` : ""}</figure>`;
+    const descendants = pos[id] ? enfantsArbre(id) : [];
+    if (descendants.length > 1) h += `<div class="fiab commun"><b>Ancêtre commun.</b> Cette personne apparaît deux fois dans l'ascendance : on descend d'elle par ${descendants.map(lien).join(" et par ")}${rencontre(id, descendants)}.</div>`;
+    const vie = (window.FAMILLE_RECITS || {}).vies && window.FAMILLE_RECITS.vies[id];
+    const epq = (window.FAMILLE_RECITS || {}).epoques && window.FAMILLE_RECITS.epoques[id];
+    if (vie) h += `<div class="vie"><h3>Son histoire</h3><p>${lierRecit(vie)}</p>${epq ? `<p class="epq"><b>À l'époque.</b> ${lierRecit(epq)}</p>` : ""}</div>`;
+    // Partages (outils/partager.mjs) : d'une personne vivante, on ne garde que son nom et ses liens de famille.
+    if (p.vivant) h += `<div class="fiab vivant"><b>Personne vivante : informations masquées.</b> Seuls son nom et ses liens de famille figurent dans ce partage.</div>`;
+    if (p.fiab && NIV[p.fiab]) h += `<div class="fiab">${pastille(p.fiab)} <b>${NIV[p.fiab][0]}.</b> ${esc(p.fiabNote || NIV[p.fiab][1])}</div>`;
+    h += "<dl>";
+    if (p.vivant) h += `<dt>Père</dt><dd>${lien(p.pere)}</dd><dt>Mère</dt><dd>${lien(p.mere)}</dd>`;
+    else if (!p.inconnu) {
+      h += `<dt>Naissance</dt><dd>${evt(p.naissance)}</dd>`;
+      if (p.unions && p.unions.length > 1) p.unions.forEach((u, i) => { h += `<dt>${i ? "Remariage" : "Mariage"}</dt><dd>${evt(u)}${u.conjoint ? ` avec ${lien(u.conjoint)}` : ""}</dd>`; });
+      else if (p.mariage) h += `<dt>Mariage</dt><dd>${evt(p.mariage)}</dd>`;
+      if (p.deces) h += `<dt>Décès</dt><dd>${evt(p.deces)}</dd>`;
+      if (p.metier) h += `<dt>Métier</dt><dd>${esc(p.metier)}</dd>`;
+      if (p.nationalite) h += `<dt>Nationalité</dt><dd>${esc(p.nationalite)}</dd>`;
+      h += `<dt>Père</dt><dd>${lien(p.pere)}</dd><dt>Mère</dt><dd>${lien(p.mere)}</dd>`;
+    }
+    const cj = p.conjoint || Object.keys(P).find(k => P[k].conjoint === id);
+    if (cj) h += `<dt>Conjoint</dt><dd>${lien(cj)}</dd>`;
+    if (enfants.length) h += `<dt>Enfants</dt><dd>${enfants.map(lien).join(", ")}</dd>`;
+    const fs = fratrie(id);
+    if (fs.length) h += `<dt>Fratrie</dt><dd>${fs.map(lien).join(", ")}</dd>`;
+    h += "</dl>";
+    const lx = lieuxPersonne(id);
+    if (lx.length && LF) h += `<h3>Lieux (${lx.length})</h3><div id="minicarte" role="img" aria-label="Carte des lieux connus de ${esc(nomComplet(p))}"></div><ul class="lieux">${lx.map((l, i) => `<li data-lieu="${i}"><i class="${l.type}"></i><div>${esc(l.nom)} <span>${esc(l.detail)}</span></div></li>`).join("")}</ul>`;
+    if (p.chronologie && p.chronologie.length) h += `<h3>Chronologie</h3><ol class="chrono">${p.chronologie.map(e => `<li><span class="cd">${esc(e.date || "")}</span><span>${e.lieu ? `<b>${esc(e.lieu)}</b> · ` : ""}${lierRecit(e.texte)}${(e.src || []).length ? ` <sup>${e.src.map(n => { const so = p.sources && p.sources[n - 1], na = so && so.nature; return `<a href="#src-${n}" data-src="${n}" class="${na === "acte" || na === "dossier" ? "fort" : "faible"}" title="${esc(NATURES[na] || "Source")}">${n}</a>`; }).join(",")}</sup>` : ""}</span></li>`).join("")}</ol>`;
+    if (p.remarques) h += `<h3>Remarques</h3><p>${lierRecit(p.remarques)}</p>`;
+    if (p.notes) h += `<h3>Notes</h3><p>${esc(p.notes)}</p>`;
+    const aParents = !p.vivant && ((p.pere && P[p.pere]) || (p.mere && P[p.mere]));
+    if (aParents || (cj && p.lienUnion)) {
+      h += "<h3>D'où viennent ces liens</h3>";
+      if (aParents) {
+        h += `<div class="preuve"><b>Filiation avec ses parents</b>`;
+        const roles = [["pere", "Père"], ["mere", "Mère"]].filter(([r]) => p[r] && P[p[r]]);
+        for (const [role, qui] of roles) h += blocLien(p, lienDe(id, role), qui, p[role]);
+        // Le texte libre (lienParents) reste affiché, sauf quand chaque lien a son raisonnement, qui le reprend.
+        const libre = p.lienParents || (roles.some(([r]) => lienDe(id, r)) ? "" : p.sources ? texteSource(p.sources[0]) : "Source non précisée.");
+        if (libre && !roles.every(([r]) => (lienDe(id, r) || {}).raisonnement)) h += `<p>${esc(libre)}</p>`;
+        h += `</div>`;
+      }
+      const u0 = (p.unions || []).find(u => u.conjoint === cj);
+      if (cj && p.lienUnion) h += `<div class="preuve"><b>Union avec ${esc(P[cj].prenoms || "son conjoint")} ${esc(P[cj].nom || "")}</b>${u0 && u0.lien ? blocLien(p, u0.lien, "Preuve", null) : ""}<p>${esc(p.lienUnion)}</p></div>`;
+    }
+
+    if (p.aVoir) h += `<h3>À voir</h3><ul>${p.aVoir.map(([t, u]) => `<li><a href="${esc(u)}" target="_blank" rel="noopener">${esc(t)}</a></li>`).join("")}</ul>`;
+    const actes = (window.FAMILLE_ACTES || {})[id] || [], vues = (window.FAMILLE_VUES || {})[id] || [];
+    const galerie = (liste, k) => `<div class="actes">` + liste.map((a, i) => `<div class="acte${a.image ? "" : " sans"}">` +
+        (a.image ? `<button type="button" data-${k}="${i}" aria-label="Agrandir : ${esc(a.titre)}"><img src="${esc(a.image)}" alt="" loading="lazy"></button>` : "") +
+        `<div><b>${esc(a.titre)}</b>${a.douteux ? `<small class="douteux">Identification de l'image à confirmer</small>` : ""}${a.credit ? `<small>${esc(a.credit)}</small>` : ""}` +
+        (a.url ? `<small><a href="${esc(a.url)}" target="_blank" rel="noopener">Voir l'original en ligne</a></small>` : "") + `</div></div>`).join("") + `</div>`;
+    if (actes.length) h += `<h3>Actes (${actes.length})</h3>` + galerie(actes, "acte");
+    if (vues.length) h += `<h3>Lieux de vie (${vues.length})</h3>` + galerie(vues, "photo");
+    if (p.pistes) h += `<h3>Pistes</h3><p>${esc(p.pistes)}</p>`;
+    if (p.aVerifier) h += `<h3>À vérifier</h3><ul class="warn">${p.aVerifier.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`;
+    if (p.sources) h += `<h3>Sources</h3><ol class="sources">${p.sources.map((t, i) => `<li id="src-${i + 1}">${typeof t === "string" ? esc(t) : `${NATURES[t.nature] ? `<span class="nat ${t.nature}">${NATURES[t.nature]}</span> ` : ""}${esc(t.texte)}${t.url ? ` <a href="${esc(t.url)}" target="_blank" rel="noopener">en ligne</a>` : ""}${(t.images || []).length ? ` <small>· ${t.images.length} image${t.images.length > 1 ? "s" : ""} dans « Actes »</small>` : ""}`}</li>`).join("")}</ol>`;
+    h += `<section class="cm" id="cm" hidden></section>`;
+    fiche.innerHTML = h; fiche.scrollTop = 0;
+    dessinerCm(id);
+    fiche.querySelectorAll("[data-acte]").forEach(b => b.onclick = () => voirActe(actes[+b.dataset.acte]));
+    fiche.querySelectorAll("[data-src]").forEach(l => l.onclick = ev => { ev.preventDefault(); const li = fiche.querySelector("#src-" + l.dataset.src); if (li) { fiche.querySelectorAll("ol.sources li.vise").forEach(x => x.classList.remove("vise")); li.classList.add("vise"); li.scrollIntoView({ behavior: "smooth", block: "center" }); } });
+    fiche.querySelectorAll("[data-photo]").forEach(b => b.onclick = () => voirActe(vues[+b.dataset.photo]));
+    if (ouvrir || !mobile()) fiche.hidden = false;
+    miniCarte(lx);
+    if (pos[id]) centrer(id);
+    if (vue === "carte") dessinerCarte();
+    if (vue === "frise") dessinerFrise(true);
+    if (vue === "famille") dessinerFamille();
+  }
+
+  // ---- Commentaires de la famille : API du Worker sous api/ (voir outils/PARTAGES.md, « Commentaires ») ----
+  // En file:// ou si l'API ne répond pas, rien ne s'affiche. Dans un partage : la liste et un formulaire. Dans le site
+  // complet (administrateurs) : les commentaires de tous les partages avec « Masquer », et dans la vue Recherches les
+  // derniers commentaires et les visiteurs des partages.
+  const CM = { mode: null, moi: {}, liste: [], visiteurs: null, envoi: false };
+  // Site complet : statut de traitement (les sessions Claude intègrent les commentaires et les passent à « traité »,
+  // voir outils/commentaires.mjs) et « Masquer » / « Rétablir ».
+  const statutCm = c => c.statut === "traite" ? `<span class="cm-statut traite">Traité${c.traitement ? " : " + esc(c.traitement) : ""}</span>` : `<span class="cm-statut">Nouveau</span>`;
+  const actionsCm = c => `<div class="cm-bas"><button type="button" class="cm-act" data-cm-action="masquer" data-cm-id="${esc(c.id)}" data-masque="${c.masque ? "0" : "1"}">${c.masque ? "Rétablir" : "Masquer"}</button>${statutCm(c)}</div>`;
+  document.addEventListener("click", async e => {
+    const b = e.target.closest("[data-cm-action]"); if (!b || CM.mode !== "complet") return;
+    b.disabled = true;
+    try {
+      const a = b.dataset.cmAction, j = await appelCm(`commentaires/${encodeURIComponent(b.dataset.cmId)}/${a}`, a === "masquer" ? { masque: b.dataset.masque === "1" } : {});
+      const i = CM.liste.findIndex(c => c.id === j.commentaire.id); if (i >= 0) CM.liste[i] = j.commentaire;
+      dessinerCm(courant); if (vue === "recherches") dessinerRecherches();
+    } catch (er) { b.disabled = false; b.textContent = er.message; }
+  });
+  const dateCm = d => { const x = new Date(d); return isNaN(x) ? String(d).slice(0, 10) : x.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }); };
+  const lireNomCm = () => { try { return localStorage.getItem("nomCommentaire") || ""; } catch (e) { return ""; } };
+  const garderNomCm = n => { try { localStorage.setItem("nomCommentaire", n); } catch (e) {} };
+  async function appelCm(chemin, corps) {
+    const init = { credentials: "same-origin", headers: { accept: "application/json" } };
+    if (corps) Object.assign(init, { method: "POST", headers: { ...init.headers, "content-type": "application/json" }, body: JSON.stringify(corps) });
+    const r = await fetch(new URL("api/" + chemin, location.href).href, init);
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error((j && j.erreur) || `Erreur ${r.status}`);
+    return j;
+  }
+  function chargerCm() {
+    if (!/^https?:$/.test(location.protocol)) return;
+    appelCm("commentaires").then(j => {
+      if (!j || !j.mode || !Array.isArray(j.commentaires)) return;
+      CM.mode = j.mode; CM.moi = j.moi || {}; CM.liste = j.commentaires;
+      dessinerCm(courant);
+      if (vue === "recherches") dessinerRecherches();
+      if (CM.mode === "complet") appelCm("visiteurs").then(v => { CM.visiteurs = (v && v.visiteurs) || []; if (vue === "recherches") dessinerRecherches(); }).catch(() => {});
+    }).catch(() => {});
+  }
+  function dessinerCm(id) {
+    const el = $("cm"); if (!el || !CM.mode || !P[id]) return;
+    const admin = CM.mode === "complet", liste = CM.liste.filter(c => c.fiche === id);
+    if (admin && !liste.length) { el.hidden = true; return; }
+    let h = `<h3>Commentaires de la famille${liste.length ? ` (${liste.length})` : ""}</h3>`;
+    if (liste.length) h += `<ul class="cm-liste">` + liste.map(c => `<li class="${c.masque ? "masque" : ""}"><div class="cm-qui"><b>${esc(c.auteurNom)}</b> · ${esc(dateCm(c.date))}` +
+      (admin ? ` · partage ${esc(c.partage)} · ${esc(c.auteurEmail)}${c.masque ? " · masqué" : ""}` : c.moi ? " · vous" : "") +
+      `</div><p class="cm-texte">${esc(c.texte)}</p>${admin ? actionsCm(c) : ""}</li>`).join("") + `</ul>`;
+    if (!admin) h += `<form class="cm-form">` +
+      (CM.moi.nomFixe ? "" : `<label>Votre nom<input name="nom" maxlength="60" autocomplete="name" required value="${esc(CM.moi.nom || lireNomCm())}"></label>`) +
+      `<label>${liste.length ? "Ajouter un commentaire" : "Un souvenir, une correction, un surnom ?"}<textarea name="texte" rows="3" maxlength="2000" required></textarea></label>` +
+      `<div class="cm-bas"><button type="submit" class="cm-envoyer">Envoyer</button><small class="cm-etat" aria-live="polite"></small></div>` +
+      `<p class="cm-aide">${P[id].vivant ? "Sur la fiche d'une personne vivante, votre commentaire n'est visible que par vous et par les administrateurs de l'arbre." : "Visible par les personnes qui ont accès à ce partage."} Les administrateurs pourront l'ajouter à la fiche en le citant.</p></form>`;
+    el.innerHTML = h; el.hidden = false;
+    const f = el.querySelector("form");
+    if (f) f.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      if (CM.envoi) return;
+      const texte = f.elements.texte.value.trim(), nom = f.elements.nom ? f.elements.nom.value.trim() : "", etat = f.querySelector(".cm-etat"), bouton = f.querySelector("button");
+      if (!texte) return;
+      CM.envoi = true; bouton.disabled = true; etat.textContent = "Envoi…";
+      try {
+        const j = await appelCm("commentaires", { fiche: id, texte, ...(nom && { nom }) });
+        if (nom) { garderNomCm(nom); CM.moi.nom = nom; }
+        CM.liste.push(j.commentaire); CM.envoi = false;
+        if (courant === id) { dessinerCm(id); const e2 = el.querySelector(".cm-etat"); if (e2) e2.textContent = "Merci, c'est enregistré."; }
+      } catch (e) { CM.envoi = false; bouton.disabled = false; etat.textContent = e.message; }
+    });
+  }
+  // Vue Recherches du site complet : derniers commentaires et visiteurs des partages (avec la liste de leurs e-mails à copier).
+  function encartsCm() {
+    if (CM.mode !== "complet") return "";
+    const derniers = [...CM.liste].sort((a, b) => a.date < b.date ? 1 : -1).slice(0, 8);
+    let h = `<div class="cm-encarts"><section class="cm-encart"><h3>Derniers commentaires</h3>` + (derniers.length ? `<ul>` + derniers.map(c =>
+      `<li class="${c.masque ? "masque" : ""}">${P[c.fiche] ? `<a data-id="${esc(c.fiche)}">${esc(nomComplet(P[c.fiche]))}</a>` : esc(c.fiche)} <span class="cm-qui">· ${esc(c.auteurNom)} · ${esc(c.partage)} · ${esc(dateCm(c.date))}${c.masque ? " · masqué" : ""}</span>` +
+      `<p class="cm-texte">${esc(c.texte.length > 220 ? c.texte.slice(0, 200).trim() + " …" : c.texte)}</p>${actionsCm(c)}</li>`).join("") + `</ul>` : `<p class="rq-vide">Aucun commentaire pour l'instant.</p>`) + `</section>`;
+    h += `<section class="cm-encart"><h3>Visiteurs des partages</h3>`;
+    if (!CM.visiteurs) h += `<p class="rq-vide">Chargement…</p>`;
+    else if (!CM.visiteurs.length) h += `<p class="rq-vide">Personne n'est encore venu.</p>`;
+    else {
+      const parPartage = {}; CM.visiteurs.forEach(v => (parPartage[v.partage] = parPartage[v.partage] || []).push(v));
+      h += Object.entries(parPartage).map(([n, vs]) => `<div class="cm-partage"><span>${esc(n)} · ${vs.length} visiteur${vs.length > 1 ? "s" : ""}</span><button type="button" class="cm-act" data-cm-copier="${esc(n)}">Copier les e-mails</button></div><ul>` +
+        vs.map(v => `<li><b>${esc(v.email)}</b>${v.nom ? ` <span class="cm-qui">(${esc(v.nom)})</span>` : ""}<div class="cm-qui">1re visite ${esc(dateCm(v.premiere))} · dernière ${esc(dateCm(v.derniere))} · ${v.visites} visite${v.visites > 1 ? "s" : ""}</div></li>`).join("") + `</ul>`).join("");
+    }
+    return h + `</section></div>`;
+  }
+  $("rechercheszone").addEventListener("click", async e => {
+    const b = e.target.closest("[data-cm-copier]"); if (!b || !CM.visiteurs) return;
+    const liste = CM.visiteurs.filter(v => v.partage === b.dataset.cmCopier).map(v => v.email).join(", ");
+    try { await navigator.clipboard.writeText(liste); b.textContent = "Copié"; }
+    catch (er) { // Presse-papiers refusé : la liste s'affiche, sélectionnée, pour la copier à la main.
+      const t = document.createElement("textarea"); t.rows = 3; t.readOnly = true; t.value = liste;
+      b.closest(".cm-partage").after(t); t.select();
+    }
+  });
+
+  // ---- Vue Famille : la personne choisie avec ses grands-parents, parents, oncles et tantes, frères et sœurs,
+  // cousins germains, conjoint, enfants, neveux et nièces. Un clic recentre la vue sur la personne cliquée.
+  function dessinerFamille() {
+    const id = courant, p = P[id], ancetres = new Set();
+    (function up(x) { if (!x || !P[x] || ancetres.has(x)) return; ancetres.add(x); up(P[x].pere); up(P[x].mere); })(racine);
+    if (conjoint) (function up(x) { if (!x || !P[x] || ancetres.has(x)) return; ancetres.add(x); up(P[x].pere); up(P[x].mere); })(conjoint);
+    const enfants = x => Object.keys(P).filter(k => P[k].pere === x || P[k].mere === x).sort((a, b) => an(P[a].naissance) - an(P[b].naissance));
+    const freres = x => P[x] ? fratrie(x).sort((a, b) => (an(P[a].naissance) || 9999) - (an(P[b].naissance) || 9999)) : [];
+    const conj = x => P[x].conjoint || Object.keys(P).find(k => P[k].conjoint === x);
+    const carte = x => x && P[x] ? `<button type="button" class="fcarte ${P[x].sexe || ""}${x === id ? " moi" : ""}${ancetres.has(x) && x !== id && x !== racine && x !== conjoint ? " direct" : ""}" data-id="${x}">
+      <b>${aHist(x) ? HIST : ""}${esc(P[x].inconnu ? (P[x].role || "Inconnu") : prenomDe(P[x]) + " " + (P[x].nomNaissance || P[x].nom))}</b><span>${esc(dates(P[x]))}</span>${P[x].metier ? `<span>${esc(P[x].metier)}</span>` : ""}${pastille(P[x].fiab)}</button>` : "";
+    const groupe = (titre, ids) => ids.filter(Boolean).length ? `<div class="fgroupe">${titre ? `<small>${esc(titre)}</small>` : ""}<div>${ids.filter(Boolean).map(carte).join("")}</div></div>` : "";
+    const rang = (titre, contenu) => `<section class="frang"><h3>${titre}</h3><div class="fgroupes">${contenu || `<span class="fvide">Personne de connu pour l'instant.</span>`}</div></section>`;
+    const prenom = x => P[x] ? prenomDe(P[x]) : "";
+    let h = `<h2>Famille de ${esc(nomComplet(p))}</h2><p class="aide">Touchez une personne pour centrer la vue sur sa famille. « ancêtre » signale les ancêtres directs.</p>`;
+    const gp = [p.pere, p.mere].map(par => par && P[par] ? groupe("Parents " + (par === p.pere ? "du père" : "de la mère"), [P[par].pere, P[par].mere]) : "").join("");
+    h += rang("Grands-parents", gp);
+    const cote = par => par && P[par] ? groupe(par === p.pere ? "Côté du père" : "Côté de la mère", [...freres(par).filter(x => P[x].sexe !== "F" || true), par].sort((a, b) => (an(P[a].naissance) || 9999) - (an(P[b].naissance) || 9999))) : "";
+    h += rang("Parents, oncles et tantes", cote(p.pere) + cote(p.mere));
+    const cj = conj(id);
+    h += rang("Frères, sœurs et conjoint", groupe("", [...freres(id), id].sort((a, b) => (an(P[a].naissance) || 9999) - (an(P[b].naissance) || 9999))) + (cj ? groupe("Conjoint", [cj]) : ""));
+    const oncles = [p.pere, p.mere].filter(x => x && P[x]).flatMap(freres);
+    h += rang("Cousins germains", oncles.map(o => groupe("Enfants de " + prenom(o), enfants(o))).join(""));
+    h += rang("Enfants", groupe("", enfants(id)));
+    h += rang("Neveux et nièces", freres(id).map(s => groupe("Enfants de " + prenom(s), enfants(s))).join(""));
+    $("famillezone").innerHTML = h;
+  }
+
+  // Visionneuse plein écran d'un acte : un clic sur l'image bascule entre « ajusté » et « taille réelle ».
+  function voirActe(a) {
+    const v = document.createElement("div"); v.id = "visionneuse"; v.setAttribute("role", "dialog"); v.setAttribute("aria-label", a.titre);
+    v.innerHTML = `<div class="haut"><span>${esc(a.titre)}${a.url ? ` · <a href="${esc(a.url)}" target="_blank" rel="noopener">original</a>` : ""}</span><button type="button" aria-label="Fermer">×</button></div><div class="img"><img src="${esc(a.image)}" alt="${esc(a.titre)}"></div>`;
+    const fermer = () => { v.remove(); document.removeEventListener("keydown", esc_); };
+    const esc_ = e => { if (e.key === "Escape") fermer(); };
+    v.querySelector("button").onclick = fermer;
+    v.querySelector("img").onclick = e => e.target.classList.toggle("plein");
+    v.onclick = e => { if (e.target === v) fermer(); };
+    document.addEventListener("keydown", esc_);
+    document.body.appendChild(v);
+  }
+
+  // ---- Carte : lieux de vie de la personne choisie et lieux de naissance de ses ancêtres ----
+  // Répertoire des communes (lieux.js) ; les noms les plus longs d'abord, pour que « Saint-Martin-le-Beau » soit reconnu avant « Saint-Martin ».
+  const LIEUX = window.FAMILLE_LIEUX || {};
+  const NOMS_LIEUX = Object.keys(LIEUX).sort((a, b) => b.length - a.length);
+  const LF = window.L, info = $("lieuInfo");
+  const ATTR_IGN = '<a href="https://geoservices.ign.fr" target="_blank" rel="noopener">IGN</a>';
+  const wmts = (layer, fmt, set, min, max, attr) => LF.tileLayer(`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=normal&TILEMATRIXSET=${set}&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=${fmt}`, { minNativeZoom: min, maxNativeZoom: max, maxZoom: 19, attribution: attr });
+  let carte = null, coucheFam = null;
+  const fondsCarte = () => ({
+      "Plan actuel (OpenStreetMap)": LF.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' }),
+      "Plan IGN (France)": wmts("GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2", "image/png", "PM_0_19", 0, 19, ATTR_IGN),
+      "Carte d'état-major, 1820-1866 (France)": wmts("GEOGRAPHICALGRIDSYSTEMS.ETATMAJOR40", "image/jpeg", "PM_6_15", 6, 15, ATTR_IGN),
+      "Carte de Cassini, XVIIIe siècle (France)": wmts("BNF-IGNF_GEOGRAPHICALGRIDSYSTEMS.CASSINI", "image/png", "PM_6_14", 6, 14, ATTR_IGN + " · BnF"),
+  });
+  function initCarte() {
+    if (carte || !LF) return;
+    const fonds = fondsCarte();
+    let choisi = "Plan actuel (OpenStreetMap)";
+    try { const m = localStorage.getItem("fondCarte"); if (fonds[m]) choisi = m; } catch (e) {}
+    carte = LF.map("carte", { zoomControl: false, attributionControl: true, worldCopyJump: true, layers: [fonds[choisi]] });
+    LF.control.layers(fonds, null, { collapsed: true, position: "topright" }).addTo(carte);
+    carte.on("baselayerchange", e => { try { localStorage.setItem("fondCarte", e.name); } catch (er) {} });
+    carte.attributionControl.setPrefix(false);
+    coucheFam = LF.layerGroup().addTo(carte);
+    carte.on("click", e => {
+      const pt = e.containerPoint;
+      const proches = Object.keys(parLieu).map(n => [carte.latLngToContainerPoint(LIEUX[n]).distanceTo(pt), n]).filter(a => a[0] < 28).sort((a, b) => a[0] - b[0]);
+      if (proches.length) voirLieu(proches.filter(a => a[0] < proches[0][0] + 14).map(a => a[1]));
+    });
+    requestAnimationFrame(() => { carte.invalidateSize(); toutVoirCarte(); });
+  }
+  function toutVoirCarte() {
+    if (!carte) return;
+    const ks = new Set(EVTS.map(([c]) => lieuDe(P[courant][c])).filter(Boolean));
+    for (const [, par] of ascendance(courant, [])) { const k = lieuDe(P[par].naissance); if (k) ks.add(k); }
+    const pts = [...(ks.size ? ks : Object.keys(parLieu))].map(k => LIEUX[k]);
+    carte.fitBounds(LF.latLngBounds(pts).pad(0.15), { maxZoom: 9 });
+  }
+  const EVTS = [["naissance", "naissance", "°"], ["mariage", "mariage", "×"], ["deces", "décès", "†"]];
+  const lieuDe = e => (e && e.commune && LIEUX[e.commune] && e.commune) || (e && e.lieu && (NOMS_LIEUX.find(n => e.lieu.startsWith(n)) || NOMS_LIEUX.find(n => e.lieu.includes(n)))) || null;
+
+  // ---- Petite carte de la fiche : tous les lieux connus de la personne ----
+  // Actes (naissance, baptême, mariage, décès), lieux de vie photographiés (repères précis) et communes citées dans les notes.
+  const EVTS_FICHE = [["naissance", "naissance", "°"], ["bapteme", "baptême", "°"], ["mariage", "mariage", "×"], ["deces", "décès", "†"]];
+  const reLieu = n => new RegExp("(^|[^\\p{L}-])" + n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![\\p{L}-])", "u");
+  const RE_LIEUX = NOMS_LIEUX.map(n => [n, reLieu(n)]);
+  function lieuxPersonne(id) {
+    const p = P[id], res = [], vus = {};
+    for (const [c, lib, s] of EVTS_FICHE) {
+      const k = lieuDe(p[c]); if (!k) continue;
+      const an = (String(p[c].date || "").match(/\d{4}/) || [])[0];
+      if (vus[k]) { vus[k].detail += `, ${s} ${lib}${an ? " " + an : ""}`; continue; }
+      res.push(vus[k] = { nom: k, ll: LIEUX[k], type: "evt", detail: `${s} ${lib}${an ? " " + an : ""}` });
+    }
+    // Repères précis des photos de lieux de vie, regroupés par commune (la plus proche du répertoire).
+    const pris = new Set(), parCommune = {};
+    for (const v of (window.FAMILLE_VUES || {})[id] || []) {
+      const m = v.url && v.url.match(/lon=(-?[\d.]+)&lat=(-?[\d.]+)/); if (!m) continue;
+      const ll = [+m[2], +m[1]], cle = ll.map(x => x.toFixed(3)).join(); if (pris.has(cle)) continue; pris.add(cle);
+      const [d, n] = NOMS_LIEUX.map(k => [Math.hypot(LIEUX[k][0] - ll[0], (LIEUX[k][1] - ll[1]) * Math.cos(ll[0] * Math.PI / 180)), k]).sort((x, y) => x[0] - y[0])[0];
+      const nom = d < 0.12 ? n : v.titre.split(/[,(:]/)[0].trim();
+      (parCommune[nom] = parCommune[nom] || []).push(ll);
+    }
+    for (const nom in parCommune) {
+      const pts = parCommune[nom], dj = vus[nom];
+      const detail = pts.length > 1 ? `lieux de vie photographiés (${pts.length} repères)` : "lieu de vie photographié";
+      if (dj) { dj.vues = pts; dj.detail += " · " + detail; continue; }
+      res.push(vus[nom] = { nom, ll: pts[0], vues: pts, type: "vue", detail });
+    }
+    const texte = [p.notes, p.metier].filter(Boolean).join(" ");
+    // Communes citées, dans l'ordre où les notes les mentionnent.
+    const cites = [];
+    for (const [n, re] of RE_LIEUX) {
+      const m = re.exec(texte); if (vus[n] || !m) continue;
+      if (Object.keys(vus).some(k => k.startsWith(n) || n.startsWith(k))) continue;
+      cites.push([m.index, vus[n] = { nom: n, ll: LIEUX[n], type: "cite", detail: "cité dans les notes" }]);
+    }
+    return res.concat(cites.sort((a, b) => a[0] - b[0]).map(c => c[1]));
+  }
+  let mini = null, miniObs = null;
+  function miniCarte(lx) {
+    if (mini) { mini.remove(); mini = null; }
+    if (miniObs) { miniObs.disconnect(); miniObs = null; }
+    const el = $("minicarte"); if (!el || !LF || !lx.length) return;
+    const css = getComputedStyle(document.documentElement), coul = n => css.getPropertyValue(n).trim();
+    let fond = "Plan actuel (OpenStreetMap)"; try { fond = localStorage.getItem("fondCarte") || fond; } catch (e) {}
+    const fonds = fondsCarte();
+    mini = LF.map(el, { zoomControl: true, scrollWheelZoom: false, attributionControl: true, worldCopyJump: true, layers: [fonds[fond] || fonds["Plan actuel (OpenStreetMap)"]] });
+    mini.attributionControl.setPrefix(false);
+    const st = { evt: { radius: 7, fillColor: coul("--accent"), fillOpacity: 1, color: "#fff", weight: 2 },
+      vue: { radius: 5, fillColor: coul("--ink"), fillOpacity: 1, color: "#fff", weight: 1.5 },
+      cite: { radius: 5, fillColor: coul("--muted"), fillOpacity: .7, color: "#fff", weight: 1 } };
+    const evts = lx.filter(l => l.type === "evt");
+    if (evts.length > 1) LF.polyline(evts.map(l => l.ll), { color: coul("--accent"), weight: 3, opacity: .7, interactive: false }).addTo(mini);
+    const tip = l => esc(l.nom) + " · " + esc(l.detail), opt = { direction: "top", className: "lieu-label" };
+    const mk = lx.map(l => {
+      if (l.vues && l.type !== "vue") l.vues.forEach(v => LF.circleMarker(v, st.vue).bindTooltip(tip(l), opt).addTo(mini));
+      else if (l.vues) l.vues.slice(1).forEach(v => LF.circleMarker(v, st.vue).bindTooltip(tip(l), opt).addTo(mini));
+      return LF.circleMarker(l.ll, st[l.type]).bindTooltip(tip(l), opt).addTo(mini);
+    });
+    const tous = lx.flatMap(l => [l.ll, ...(l.vues || [])]);
+    const cadrer = () => { mini.invalidateSize(); tous.length > 1 ? mini.fitBounds(LF.latLngBounds(tous).pad(0.25), { maxZoom: 13 }) : mini.setView(tous[0], 11); };
+    let vu = false;
+    miniObs = new ResizeObserver(() => { if (el.offsetWidth && !vu) { vu = true; cadrer(); } });
+    miniObs.observe(el);
+    fiche.querySelectorAll("[data-lieu]").forEach(li => li.onclick = () => { const i = +li.dataset.lieu; const pts = [lx[i].ll, ...(lx[i].vues || [])]; pts.length > 1 ? mini.fitBounds(LF.latLngBounds(pts).pad(0.3), { maxZoom: 16 }) : mini.setView(pts[0], 12); mk[i].openTooltip(); });
+  }
+  const parLieu = {};
+  for (const id in P) for (const [c, lib] of EVTS) {
+    const k = lieuDe(P[id][c]);
+    if (k) ((parLieu[k] = parLieu[k] || {})[id] = parLieu[k][id] || []).push(lib);
+  }
+  function ascendance(id, acc) {
+    for (const x of [P[id].pere, P[id].mere]) if (x && P[x]) { acc.push([id, x]); ascendance(x, acc); }
+    return acc;
+  }
+  function dessinerCarte() {
+    initCarte(); if (!carte) return;
+    carte.invalidateSize();
+    const p = P[courant], liens = ascendance(courant, []), css = getComputedStyle(document.documentElement);
+    const coul = n => css.getPropertyValue(n).trim();
+    coucheFam.clearLayers();
+    const origines = new Set();
+    for (const [enf, par] of liens) {
+      const a = lieuDe(P[enf].naissance), b = lieuDe(P[par].naissance);
+      if (b) origines.add(b);
+      if (a && b && a !== b) LF.polyline([LIEUX[a], LIEUX[b]], { color: coul("--fc"), weight: 2, opacity: .6, interactive: false }).addTo(coucheFam);
+    }
+    const etapes = EVTS.map(([c, , s]) => [lieuDe(p[c]), s]).filter(e => e[0]);
+    for (let i = 1; i < etapes.length; i++) if (etapes[i][0] !== etapes[i - 1][0])
+      LF.polyline([LIEUX[etapes[i - 1][0]], LIEUX[etapes[i][0]]], { color: coul("--accent"), weight: 4, interactive: false }).addTo(coucheFam);
+    const mien = {};
+    for (const [k, s] of etapes) (mien[k] = mien[k] || []).push(s);
+    for (const k in parLieu) {
+      const n = Object.keys(parLieu[k]).length, r = 5 + Math.sqrt(n) * 2.5;
+      const st = mien[k] ? { fillColor: coul("--accent"), fillOpacity: 1, color: "#fff", weight: 2 }
+        : origines.has(k) ? { fillColor: coul("--fc"), fillOpacity: .9, color: "#fff", weight: 1.5 }
+        : { fillColor: coul("--muted"), fillOpacity: .6, color: "#fff", weight: 1 };
+      if (lieuxVus.includes(k)) Object.assign(st, { color: coul("--ink"), weight: 2.5 });
+      const c = LF.circleMarker(LIEUX[k], Object.assign({ radius: r, bubblingMouseEvents: true }, st)).addTo(coucheFam);
+      if (mien[k] || lieuxVus.includes(k)) c.bindTooltip(esc(k) + (mien[k] ? " " + mien[k].join(" ") : ""), { permanent: true, direction: "right", offset: [r, 0], className: "lieu-label" });
+      else c.bindTooltip(esc(k), { direction: "top", className: "lieu-label" });
+    }
+    if (!lieuVu) infoPersonne();
+  }
+  const anneesDe = p => [annee(p.naissance), annee(p.deces)].filter(Boolean).join(" – ");
+  const rang = (id, detail) => `<a class="rang" data-id="${id}"><span>${esc(nomComplet(P[id]))}</span><small>${esc(detail)}</small></a>`;
+  function infoPersonne() {
+    const p = P[courant], et = EVTS.map(([c, lib]) => lieuDe(p[c]) ? `${lib} à ${lieuDe(p[c])}` : "").filter(Boolean);
+    info.innerHTML = `<h3>${esc(nomComplet(p))}</h3><p class="aide">${et.length ? esc(et.join(", ")) + "." : "Aucun lieu connu pour cette personne."} En ocre, les lieux de naissance connus de ses ancêtres. Touchez un point pour voir qui y a vécu.</p><a class="bouton" data-fiche>Ouvrir sa fiche</a>`;
+  }
+  function voirLieu(ks) {
+    lieuVu = ks[0]; lieuxVus = ks;
+    if (mobile()) fiche.hidden = true;
+    info.innerHTML = ks.map(k => `<h3>${esc(k)}</h3>` + Object.keys(parLieu[k]).map(id => rang(id, parLieu[k][id].join(", ") + (anneesDe(P[id]) ? " · " + anneesDe(P[id]) : ""))).join("")).join("");
+    dessinerCarte();
+  }
+  const zoomCarte = d => carte && (d > 0 ? carte.zoomIn() : carte.zoomOut());
+  function zoomFrise(nz, cx, cy) {
+    if (!nz) { zf = Math.min(1, (fz.clientWidth - 2) / WF); dessinerFrise(false); fz.scrollLeft = 0; fz.scrollTop = 0; return; }
+    if (cx == null) { cx = fz.clientWidth / 2; cy = fz.clientHeight / 2; }
+    const ox = (fz.scrollLeft + cx) / zf, oy = (fz.scrollTop + cy) / zf;
+    zf = Math.min(2.5, Math.max(0.2, nz));
+    dessinerFrise(false);
+    fz.scrollLeft = ox * zf - cx; fz.scrollTop = oy * zf - cy;
+  }
+  // ---- Frise : une barre par ancêtre, de la naissance au décès ----
+  const fz = $("frisezone"), fsvg = $("frise");
+  const an = e => { const m = e && e.date && String(e.date).match(/\d{4}/); return m ? +m[0] : null; };
+  const A0 = 1560, A1 = 2030, PX = 2.4, RH = 24, TOPF = 40, LAB = 250;
+  const WF = (A1 - A0) * PX + LAB;
+  let zf = 1, rangs = {};
+  function dessinerFrise(suivre) {
+    const ids = Object.keys(pos).filter(id => an(P[id].naissance)).sort((a, b) => an(P[a].naissance) - an(P[b].naissance));
+    const HF = TOPF + ids.length * RH + 12, X = a => (a - A0) * PX + 8;
+    const lignee = new Set(ascendance(courant, []).map(l => l[1])); lignee.add(courant);
+    let h = "";
+    for (let a = 1600; a <= A1; a += 50) h += `<line class="grille" x1="${X(a)}" y1="22" x2="${X(a)}" y2="${HF}"/><text class="axe" x="${X(a) + 3}" y="14">${a}</text>`;
+    for (const [a, lib] of [[1789, "Révolution"], [1870, "Guerre de 1870"], [1914, "1914-1918"], [1939, "1939-1945"]])
+      h += `<line class="repere" x1="${X(a)}" y1="22" x2="${X(a)}" y2="${HF}"/><text class="rep" x="${X(a) + 3}" y="34">${lib}</text>`;
+    rangs = {};
+    ids.forEach((id, i) => {
+      const p = P[id], n = an(p.naissance), d = an(p.deces), y = TOPF + i * RH;
+      const vivant = !p.deces && n > 1930, fin = d || (vivant ? 2026 : n + 60);
+      rangs[id] = [X(n), y];
+      h += `<g class="barre ${p.sexe || ""}${d || vivant ? "" : " inc"}${lignee.has(id) && okMetier(id) ? "" : " hors"}${id === courant ? " sel" : ""}" data-id="${id}">
+        <rect x="${X(n)}" y="${y + 4}" width="${Math.max(4, (fin - n) * PX)}" height="14" rx="3"/>
+        <rect x="${X(n)}" y="${y}" width="${Math.max(4, (fin - n) * PX) + LAB}" height="${RH}" fill="transparent" stroke="none" style="fill:transparent;stroke:none"/>
+        <text x="${X(fin) + 6}" y="${y + 16}">${aHist(id) ? "📖 " : ""}${esc(prenomDe(p) + " " + (p.nomNaissance || p.nom))} · ${n}${d ? " – " + d : vivant ? "" : " – ?"}</text></g>`;
+    });
+    fsvg.setAttribute("viewBox", `0 0 ${WF} ${HF}`);
+    fsvg.setAttribute("width", WF * zf); fsvg.setAttribute("height", HF * zf);
+    fsvg.innerHTML = h;
+    if (suivre && rangs[courant]) {
+      fz.scrollTop = rangs[courant][1] * zf - fz.clientHeight / 2;
+      fz.scrollLeft = Math.max(0, rangs[courant][0] * zf - fz.clientWidth / 3);
+    }
+  }
+  pincable(fz, fsvg, () => zf, zoomFrise, 0.2, 2.5);
+  glissable(fz);
+  // Récits : [[id|texte]] devient un lien vers la fiche.
+  function lierRecit(t) { return esc(t).replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, (m, id, txt) => P[id] ? `<a data-id="${id}">${txt}</a>` : txt); }
+  function dessinerRecits() {
+    const R = window.FAMILLE_RECITS; if (!R) return;
+    let h = `<nav class="sommaire">${R.branches.map(b => `<a data-recit="${b.id}">${esc(b.titre)}</a>`).join("")}</nav>`;
+    h += R.branches.map(b => `<article id="recit-${b.id}"><h2>${esc(b.titre)}</h2><div class="lieu">${esc(b.lieu)}</div>${b.texte.map(t => `<p>${lierRecit(t)}</p>`).join("")}${b.images ? `<div class="galerie">${b.images.map(([img, leg]) => `<figure><button type="button" data-img="${esc(img)}" data-leg="${esc(leg)}"><img src="${esc(img)}" alt="" loading="lazy"></button><figcaption>${esc(leg)}</figcaption></figure>`).join("")}</div>` : ""}${b.contexte ? `<aside class="epoque"><h3>À l'époque</h3><dl>${b.contexte.map(([an, t]) => `<dt>${esc(an)}</dt><dd>${lierRecit(t)}</dd>`).join("")}</dl></aside>` : ""}</article>`).join("");
+    h += `<p class="note">Récits rédigés à partir des actes, recensements et articles cités dans les fiches ; touchez un nom pour ouvrir sa fiche et voir les sources.</p>`;
+    $("recitszone").innerHTML = h;
+  }
+  // ---- Vue Recherches : tableau de bord des recherches à faire, calculé à partir des fiches ----
+  // Ancêtres directs dont un parent manque (par génération), puis toutes les pistes et tous les points à vérifier, rangés par région.
+  const REGION = {};
+  for (const [r, cs] of Object.entries(window.FAMILLE_REGIONS || {})) for (const c of cs) REGION[c] = r;
+  const ORDRE_REGIONS = [...Object.keys(window.FAMILLE_REGIONS || {}), "Autres lieux", "Lieu inconnu"];
+  const enfantsDe = {};
+  for (const k in P) for (const par of [P[k].pere, P[k].mere]) if (par) (enfantsDe[par] = enfantsDe[par] || []).push(k);
+  const regionPropre = id => { for (const c of EVTS_FICHE) { const k = lieuDe(P[id][c[0]]); if (k) return REGION[k] || "Autres lieux"; } return null; };
+  // Une fiche sans lieu reconnu suit sa branche : la région de ses enfants, sinon celle de ses parents.
+  const regionDe = id => regionPropre(id) || [...(enfantsDe[id] || []), P[id].pere, P[id].mere].filter(k => k && P[k]).map(regionPropre).find(Boolean) || "Lieu inconnu";
+  const premierLieu = p => { const e = EVTS_FICHE.map(c => p[c[0]]).find(e => e && e.lieu); return e ? e.lieu.split(",")[0].trim() : ""; };
+  function sosaDe(r) {
+    const s = {};
+    (function up(id, n) { if (!id || !P[id] || (s[id] && s[id] <= n)) return; s[id] = n; up(P[id].pere, 2 * n); up(P[id].mere, 2 * n + 1); })(r, 1);
+    return s;
+  }
+  const genDe = n => Math.floor(Math.log2(n)) + 1;
+  const manqueDe = p => { const pe = p.pere && P[p.pere], me = p.mere && P[p.mere]; return pe && me ? "" : !pe && !me ? "Père et mère à trouver" : !pe ? "Père à trouver" : "Mère à trouver"; };
+  const sansLiens = t => String(t).replace(/\[\[[^|\]]+\|([^\]]+)\]\]/g, "$1");
+  // Résumé d'une piste : sa première phrase si elle est courte, sinon le début coupé à un mot.
+  const resume = t => {
+    t = sansLiens(t).trim(); if (t.length <= 190) return t;
+    const m = t.slice(0, 220).match(/^.{50,}?\.(?=\s)/);
+    return m ? m[0] : t.slice(0, 180).replace(/[\s,;:]+\S*$/, "") + " …";
+  };
+  const rq = { texte: "", region: "" };
+  function dessinerRecherches() {
+    const el = $("rechercheszone");
+    const racinesR = couple && conjoint && P[conjoint] ? [racine, conjoint] : [racine];
+    const sosas = racinesR.map(sosaDe), deux = racinesR.length > 1;
+    const sosaMin = id => Math.min(...sosas.map(s => s[id] || Infinity));
+    const ancetres = [...new Set(sosas.flatMap(Object.keys))].filter(id => !racinesR.includes(id));
+    const estDirect = id => sosas.some(s => id in s);
+    const sosaTxt = id => sosas.map((s, i) => s[id] ? "Sosa " + s[id] + (deux ? ` (${prenomDe(P[racinesR[i]])})` : "") : "").filter(Boolean).join(", ");
+    const connus = Object.keys(P).filter(k => !P[k].inconnu);
+    const aRemonter = ancetres.filter(id => manqueDe(P[id]));
+    const avecPistes = connus.filter(k => P[k].pistes), avecVerif = connus.filter(k => P[k].aVerifier && P[k].aVerifier.length);
+    const nbPoints = avecVerif.reduce((n, k) => n + P[k].aVerifier.length, 0);
+    const fiabs = { A: 0, B: 0, C: 0, D: 0 }; ancetres.forEach(id => { if (P[id].fiab in fiabs) fiabs[P[id].fiab]++; });
+    const nFiab = Object.values(fiabs).reduce((a, b) => a + b, 0) || 1;
+    const gens = Math.max(...sosas.flatMap(s => Object.values(s)).map(genDe));
+    const pl = (n, s, p) => `${n} ${n > 1 ? p || s + "s" : s}`;
+    const chiffre = (n, lib, cls) => `<div class="rq-chiffre${cls ? " " + cls : ""}"><b>${n}</b><span>${lib}</span></div>`;
+    let h = `<h2>Recherches à faire</h2><p class="aide">Tableau calculé à partir des fiches${deux ? ` de ${esc(racinesR.map(r => prenomDe(P[r])).join(" et de "))}` : ` de ${esc(prenomDe(P[racine]))}`} : les ancêtres dont un parent manque, puis les pistes notées et les points à vérifier. Touchez un nom pour ouvrir sa fiche.</p>`;
+    h += encartsCm();
+    h += `<div class="rq-chiffres">` +
+      chiffre(connus.length, "personnes dans l'arbre") +
+      chiffre(ancetres.length, `ancêtres directs sur ${gens - 1} générations`) +
+      chiffre(aRemonter.length, "ancêtres dont un parent manque") +
+      `<div class="rq-chiffre"><span>Fiabilité des ancêtres directs</span><div class="rq-fiab" role="img" aria-label="${esc(Object.keys(fiabs).map(k => `${k} : ${fiabs[k]}`).join(", "))}">${Object.keys(fiabs).filter(k => fiabs[k]).map(k => `<i class="${k}" style="flex:${fiabs[k]}" title="${esc(NIV[k][0])} : ${fiabs[k]}"></i>`).join("")}</div>` +
+      `<div class="rq-fiab-leg">${Object.keys(fiabs).map(k => `<span class="niv ${k}" title="${esc(NIV[k][0])}"><i></i><b>${k}</b> ${fiabs[k]} <small>(${Math.round(fiabs[k] * 100 / nFiab)} %)</small></span>`).join("")}</div></div>` +
+      chiffre(avecPistes.length, `fiches avec des pistes, dont ${avecPistes.filter(estDirect).length} d'ancêtres directs`) +
+      chiffre(avecVerif.length, `fiches à vérifier (${pl(nbPoints, "point")})`) + `</div>`;
+    // Complétude par génération : ancêtres connus sur le nombre attendu, et combien ont encore un parent à trouver.
+    h += `<div class="rq-gens">` + racinesR.map((r, i) => {
+      const s = sosas[i], parGen = {};
+      for (const id in s) if (id !== r) (parGen[genDe(s[id])] = parGen[genDe(s[id])] || []).push(id);
+      const lignes = Object.keys(parGen).map(Number).sort((a, b) => a - b).map(g => {
+        const ids = parGen[g], attendu = 2 ** (g - 1), m = ids.filter(id => manqueDe(P[id])).length;
+        return `<tr><td>${g}${GENS[g - 1] ? ` <small class="nomgen">${esc(GENS[g - 1].toLowerCase())}</small>` : ""}</td><td>${ids.length} <small>/ ${attendu}</small><span class="jauge" aria-hidden="true"><i style="width:${Math.min(100, ids.length * 100 / attendu)}%"></i></span></td><td class="${m ? "manque" : ""}">${m || "—"}</td></tr>`;
+      }).join("");
+      return `<table><caption>Ascendance de ${esc(prenomDe(P[r]))}, par génération</caption><thead><tr><th scope="col">Génération</th><th scope="col">Ancêtres connus</th><th scope="col">Un parent manque</th></tr></thead><tbody>${lignes}</tbody></table>`;
+    }).join("") + `</div>`;
+    // Filtres communs aux trois listes.
+    const tous = [...new Set([...aRemonter, ...avecPistes, ...avecVerif])];
+    const parRegion = {}; tous.forEach(id => { const r = regionDe(id); parRegion[r] = (parRegion[r] || 0) + 1; });
+    if (rq.region && !parRegion[rq.region]) rq.region = "";
+    h += `<div class="rq-filtres"><input id="rqtexte" type="search" placeholder="Filtrer : nom, lieu, mot de la piste…" autocomplete="off" aria-label="Filtrer les recherches par mot" value="${esc(rq.texte)}">` +
+      `<select id="rqregion" aria-label="Filtrer par région"><option value="">Toutes les régions (${tous.length})</option>${ORDRE_REGIONS.filter(r => parRegion[r]).map(r => `<option value="${esc(r)}"${r === rq.region ? " selected" : ""}>${esc(r)} (${parRegion[r]})</option>`).join("")}</select>` +
+      `<output id="rqinfo" aria-live="polite"></output><nav class="sommaire" aria-label="Sections"><a data-rq="rq-remonter">Ancêtres à remonter</a><a data-rq="rq-pistes">Pistes</a><a data-rq="rq-verifier">À vérifier</a></nav></div>`;
+    h += `<section class="rq-sec" id="rq-remonter"></section><section class="rq-sec" id="rq-pistes"></section><section class="rq-sec" id="rq-verifier"></section>`;
+    el.innerHTML = h;
+
+    const cherchable = id => { const p = P[id]; return sansAccent([nomComplet(p), p.nom, p.nomNaissance, ...EVTS_FICHE.map(c => p[c[0]] && p[c[0]].lieu), regionDe(id), p.metier, sansLiens(p.pistes || ""), ...(p.aVerifier || [])].filter(Boolean).join(" ")); };
+    const INDEX = {}; tous.forEach(id => INDEX[id] = cherchable(id));
+    const tete = id => { const p = P[id]; return `<span class="n">${aHist(id) ? HIST : ""}${esc(nomComplet(p))}</span>${pastille(p.fiab)}<span class="d">${esc([estDirect(id) ? sosaTxt(id) : "", dates(p), premierLieu(p)].filter(Boolean).join(" · "))}</span>`; };
+    const sexe = id => P[id].sexe || "";
+    const bloc = (id, corps) => `<article class="rq-bloc ${sexe(id)}"><button type="button" class="rq-tete" data-id="${id}">${tete(id)}</button>${corps}</article>`;
+    const texteLong = t => { const r = t.length > 300; return `<p class="piste${r ? " replie" : ""}">${lierRecit(t)}</p>${r ? `<button type="button" class="rq-plus" data-deplier aria-expanded="false">Lire la suite</button>` : ""}`; };
+    // Tri : ancêtres directs d'abord (du plus proche au plus lointain), puis les autres fiches par nom.
+    const tri = (a, b) => sosaMin(a) - sosaMin(b) || nomComplet(P[a]).localeCompare(nomComplet(P[b]), "fr");
+    const parRegions = (ids, rendu) => ORDRE_REGIONS.map(r => { const g = ids.filter(id => regionDe(id) === r).sort(tri); return g.length ? `<details class="rq-groupe" open><summary>${esc(r)} <span>· ${g.length}</span></summary><div class="rq-liste">${g.map(rendu).join("")}</div></details>` : ""; }).join("");
+    const vide = `<p class="rq-vide">Aucune fiche ne correspond au filtre.</p>`;
+    const titre = (t, n, total) => `<h2>${t} <small class="rq-vide">${n === total ? n : `${n} sur ${total}`}</small></h2>`;
+
+    function listes() {
+      const mots = sansAccent(rq.texte).split(/\s+/).filter(Boolean);
+      const ok = id => (!rq.region || regionDe(id) === rq.region) && mots.every(m => INDEX[id].includes(m));
+      $("rqtexte").classList.toggle("on", !!mots.length); $("rqregion").classList.toggle("on", !!rq.region);
+      // Ancêtres à remonter : par ascendance puis par génération, dans l'ordre des numéros Sosa.
+      const rem = aRemonter.filter(ok);
+      let h = titre("Ancêtres à remonter", rem.length, aRemonter.length) + `<p class="aide">Ancêtres directs dont le père ou la mère n'est pas encore dans l'arbre, de la génération la plus proche à la plus lointaine.</p>`;
+      const grp = racinesR.flatMap((r, i) => {
+        const s = sosas[i], parGen = {};
+        rem.filter(id => sosas.findIndex(x => x[id]) === i).forEach(id => (parGen[genDe(s[id])] = parGen[genDe(s[id])] || []).push(id));
+        return Object.keys(parGen).map(Number).sort((a, b) => a - b).map(g => {
+          const ids = parGen[g].sort((a, b) => s[a] - s[b]);
+          return `<details class="rq-groupe" open><summary>${deux ? esc(prenomDe(P[r])) + " · " : ""}Génération ${g}${GENS[g - 1] ? ` (${esc(GENS[g - 1].toLowerCase())})` : ""} <span>· Sosa ${2 ** (g - 1)} à ${2 ** g - 1} · ${pl(ids.length, "ancêtre")} à remonter</span></summary><div class="rq-liste">` +
+            ids.map(id => `<button type="button" class="rq-bloc ${sexe(id)}" data-id="${id}">${tete(id)}<span class="manque">${manqueDe(P[id])}</span>${P[id].pistes ? `<span class="piste">${esc(resume(P[id].pistes))}</span>` : ""}</button>`).join("") + `</div></details>`;
+        });
+      });
+      $("rq-remonter").innerHTML = h + (grp.join("") || vide);
+      const pis = avecPistes.filter(ok), ver = avecVerif.filter(ok);
+      $("rq-pistes").innerHTML = titre("Pistes", pis.length, avecPistes.length) + `<p class="aide">Les recherches à mener notées sur chaque fiche, par région ; les ancêtres directs d'abord.</p>` +
+        (parRegions(pis, id => bloc(id, texteLong(P[id].pistes))) || vide);
+      $("rq-verifier").innerHTML = titre("À vérifier", ver.length, avecVerif.length) + `<p class="aide">Points incertains relevés sur les fiches (lecture d'un acte, identification, date), par région ; les ancêtres directs d'abord.</p>` +
+        (parRegions(ver, id => bloc(id, `<ul>${P[id].aVerifier.map(t => `<li>${lierRecit(t)}</li>`).join("")}</ul>`)) || vide);
+      const n = new Set([...rem, ...pis, ...ver]).size;
+      $("rqinfo").textContent = mots.length || rq.region ? `${pl(n, "fiche")} sur ${tous.length} correspond${n > 1 ? "ent" : ""} au filtre.` : "";
+    }
+    $("rqtexte").addEventListener("input", e => { rq.texte = e.target.value; listes(); });
+    $("rqregion").addEventListener("change", e => { rq.region = e.target.value; listes(); });
+    listes();
+  }
+  function choisirVue(v) {
+    vue = (v === "carte" && LF) || v === "frise" ? v : "arbre";
+    if (v === "famille") vue = "famille";
+    if (v === "recits") vue = "recits";
+    if (v === "recherches") vue = "recherches";
+    zone.hidden = vue !== "arbre"; $("cartezone").hidden = vue !== "carte"; fz.hidden = vue !== "frise"; $("legende").hidden = vue !== "arbre";
+    $("famillezone").hidden = vue !== "famille"; $("recitszone").hidden = vue !== "recits"; $("rechercheszone").hidden = vue !== "recherches";
+    $("zoom").hidden = vue === "famille" || vue === "recits" || vue === "recherches";
+    if (vue === "recits") { dessinerRecits(); if (mobile()) fiche.hidden = true; }
+    if (vue === "recherches") { dessinerRecherches(); if (mobile()) fiche.hidden = true; }
+    if (vue === "famille") dessinerFamille();
+    document.body.dataset.vue = vue;
+    document.querySelectorAll("#vues button").forEach(b => b.setAttribute("aria-pressed", b.dataset.vue === vue));
+    if (vue === "carte") { if (mobile()) fiche.hidden = true; dessinerCarte(); }
+    else if (vue === "frise") { if (mobile()) { fiche.hidden = true; zf = 0.8; } dessinerFrise(true); }
+    else if (vue === "arbre") centrer(courant, true);
+    try { history.replaceState(null, "", "#" + vue); } catch (e) {}
+  }
+
+  document.addEventListener("click", e => {
+    const im = e.target.closest("[data-img]"); if (im) { voirActe({ titre: im.dataset.leg, image: im.dataset.img }); return; }
+    const dp = e.target.closest("[data-deplier]"); if (dp) { const t = dp.previousElementSibling, replie = t.classList.toggle("replie"); dp.textContent = replie ? "Lire la suite" : "Replier"; dp.setAttribute("aria-expanded", !replie); return; }
+    const sr = e.target.closest("[data-rq]"); if (sr) { const s = document.getElementById(sr.dataset.rq); if (s) s.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    const rc = e.target.closest("[data-recit]"); if (rc) { const art = document.getElementById("recit-" + rc.dataset.recit); if (art) art.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+    if (e.target.closest("#fermer")) { fiche.hidden = true; cadre.style.marginBottom = ""; return; }
+    const br = e.target.closest("[data-racine]"); if (br) { changerRacine(br.dataset.racine); return; }
+    const bv = e.target.closest("button[data-vue]"); if (bv) { choisirVue(bv.dataset.vue); return; }
+    if (vue === "carte" && e.target.closest("[data-id]")) { lieuVu = null; lieuxVus = []; }
+    if (e.target.closest("#resultats")) { $("resultats").hidden = true; $("cherche").value = ""; }
+    const el = e.target.closest("[data-id]");
+    if (e.target.closest("[data-fiche]")) { fiche.hidden = false; return; }
+    if (el) montrer(el.dataset.id, true);
+  });
+
+  // Recherche d'une personne par son nom.
+  const sansAccent = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const index = Object.keys(P).filter(id => !P[id].inconnu).map(id => [id, sansAccent([P[id].prenoms, P[id].nom, P[id].nomNaissance].filter(Boolean).join(" "))]);
+  $("cherche").addEventListener("input", e => {
+    const mots = sansAccent(e.target.value).split(/\s+/).filter(Boolean), res = $("resultats");
+    if (!mots.length) { res.hidden = true; return; }
+    const trouves = index.filter(([, t]) => mots.every(m => t.includes(m))).slice(0, 8);
+    res.innerHTML = trouves.length ? trouves.map(([id]) => rang(id, anneesDe(P[id]) || "dates inconnues")).join("") : `<p class="aide">Personne à ce nom.</p>`;
+    res.hidden = false;
+  });
+  function titrer() {
+    const r = P[racine], connus = Object.values(P).filter(p => !p.inconnu).length;
+    const c = couple && conjoint && P[conjoint];
+    $("titre").textContent = `Arbre généalogique de ${r.prenoms} ${r.nomNaissance || r.nom}` + (c ? ` et ${c.prenoms} ${c.nomNaissance || c.nom}` : "");
+    $("resume").textContent = `${connus} personnes en tout, ${Object.keys(pos).length} dans cette ascendance sur ${maxGen + 1} générations. Touchez une case pour ouvrir sa fiche ; pincez ou utilisez les boutons pour zoomer.`;
+    document.querySelectorAll("#racines button").forEach(b => b.setAttribute("aria-pressed", b.dataset.racine === (couple ? "couple" : racine)));
+  }
+  function changerRacine(id) {
+    couple = id === "couple"; racine = couple ? FAMILLE.racine : id; construire(); titrer(); montrer(racine, false);
+    if (vue === "arbre") { zoomer(mobile() ? 0.8 : 0.7); centrer(racine, true); }
+    if (vue === "recherches") dessinerRecherches();
+  }
+  const autre = P[racine].conjoint || Object.keys(P).find(k => P[k].conjoint === racine);
+  if (autre && (P[autre].pere || P[autre].mere))
+    $("racines").innerHTML = [racine, autre].map(id => `<button type="button" data-racine="${id}" aria-pressed="false">${esc(P[id].prenoms)}</button>`).join("") + `<button type="button" data-racine="couple" aria-pressed="false">Les deux</button>`;
+  else { $("racines").hidden = true; couple = false; construire(); }
+  titrer();
+  montrer(racine, false);
+  zoomer(mobile() ? 0.8 : 0.7);
+  centrer(racine, true);
+  // Sur mobile la hauteur définitive n'est connue qu'après la mise en page : on recentre une fois.
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (vue === "arbre") centrer(courant, true); }));
+  if (["#carte", "#frise", "#famille", "#recits", "#recherches"].includes(location.hash)) choisirVue(location.hash.slice(1));
+  // Lien direct vers une fiche (?fiche=<id>).
+  let ficheDemandee = null; try { ficheDemandee = new URLSearchParams(location.search).get("fiche"); } catch (e) {}
+  if (ficheDemandee && P[ficheDemandee]) montrer(ficheDemandee, true);
+  chargerCm();
+  addEventListener("hashchange", () => choisirVue(location.hash.slice(1)));
+})();
+</script>
+</body>
+</html>

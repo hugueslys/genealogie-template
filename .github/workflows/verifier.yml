@@ -1,0 +1,16 @@
+name: Vérification des données
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Contrôle d'intégrité (échoue en cas d'ERREUR)
+        run: node outils/verifier.mjs

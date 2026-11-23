@@ -1,0 +1,33 @@
+name: Sites d'archives (vérification hebdomadaire)
+# Chaque lundi, teste l'accès aux sites d'archives (outils/sites.mjs).
+# Si un site « à surveiller » (fermé, en maintenance ou protégé) redevient accessible, commente le ticket dont le numéro est dans la variable du dépôt SITES_TICKET (rien sinon).
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: read
+  issues: write
+jobs:
+  sites:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Tester les sites
+        run: |
+          node outils/sites.mjs | tee rapport.txt
+          node outils/sites.mjs --json > sites.json
+          echo '```' >> "$GITHUB_STEP_SUMMARY"; cat rapport.txt >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Prévenir si un site surveillé rouvre
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rouverts=$(node -e 'const r=require("./sites.json").resultats; console.log(r.filter(s=>s.surveiller&&s.etat==="OK").map(s=>"- **"+s.nom+"** ("+s.url+") : accessible").join("\n"))')
+          if [ -n "$rouverts" ] && [ -n "${{ vars.SITES_TICKET }}" ]; then
+            printf 'Vérification automatique du %s : des sites surveillés sont accessibles aux outils automatiques.\n\n%s\n\nÀ faire : mettre à jour `recherches/JOURNAL.md` (section 1), puis reprendre les recherches en attente sur ces sites.\n' "$(date +%d/%m/%Y)" "$rouverts" > corps.md
+            gh issue comment "${{ vars.SITES_TICKET }}" --repo "$GITHUB_REPOSITORY" --body-file corps.md
+          fi

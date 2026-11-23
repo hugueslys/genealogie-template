@@ -1,0 +1,14 @@
+{
+  "name": "genealogie",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "sh deployer.sh",
+    "verifier": "node outils/verifier.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/build-output-utils": "1.0.0-rc.1",
+    "@cloudflare/config": "1.0.0-rc.1",
+    "cf": "^1.0.0-rc.2"
+  }
+}

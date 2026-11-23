@@ -1,0 +1,19 @@
+{
+  "famille": {
+    "racine": "jeanne_martel",
+    "domaines": {
+      "sante": "Médecine et santé",
+      "inge": "Ingénierie et construction",
+      "terre": "Agriculture et élevage",
+      "artisan": "Artisanat et meunerie",
+      "commerce": "Commerce",
+      "arts": "Arts et savoirs",
+      "admin": "Administration"
+    }
+  },
+  "ordre": [
+    "jeanne_martel",
+    "paul_martel",
+    "louise_bertin"
+  ]
+}
