@@ -2,10 +2,11 @@
 // Synchronise le gabarit avec le projet d'origine (un arbre réel, dépôt privé) : reprend les changements des fichiers
 // génériques (outils, méthode, site, skills) sans jamais reprendre de données de famille. Lancé par outils/gabarit.sh.
 //
-//   sh outils/gabarit.sh <dépôt d'origine> [--essai] [--ref <commit>] [--garder]
+//   sh outils/gabarit.sh <dépôt d'origine> [--essai] [--ref <commit>] [--garder] [--resolu <fichier>]…
 //     --essai   montre ce qui changerait (diff), sans rien commiter
 //     --ref     commit du dépôt d'origine à reprendre (défaut : HEAD)
 //     --garder  en cas d'échec, garde le dossier de travail temporaire pour regarder (conflits, fuites)
+//     --resolu  fichier déjà reporté à la main dans le gabarit après un conflit : il n'est pas fusionné (option répétable)
 //
 // Principe (détails : README, « Mettre à jour depuis le projet d'origine ») :
 //   1. outils/gabarit.base contient le commit du dépôt d'origine dont le gabarit est issu ;
@@ -30,8 +31,9 @@ const args = process.argv.slice(2);
 const drapeau = n => { const i = args.indexOf(n); if (i < 0) return false; args.splice(i, 1); return true; };
 const option = n => { const i = args.indexOf(n); return i < 0 ? null : args.splice(i, 2)[1]; };
 const essai = drapeau("--essai"), garder = drapeau("--garder"), ref = option("--ref") || "HEAD";
+const resolus = new Set(); for (let r; (r = option("--resolu"));) resolus.add(r.replace(/^\.\//, ""));
 const ORIGINE = args[0] && resolve(args[0]);
-if (!ORIGINE) { console.error("Usage : sh outils/gabarit.sh <chemin du dépôt d'origine> [--essai] [--ref <commit>] [--garder]"); process.exit(2); }
+if (!ORIGINE) { console.error("Usage : sh outils/gabarit.sh <chemin du dépôt d'origine> [--essai] [--ref <commit>] [--garder] [--resolu <fichier>]…"); process.exit(2); }
 
 const git = (dir, ...a) => execFileSync("git", ["-C", dir, ...a], { maxBuffer: 1 << 28 }).toString();
 const gitBuf = (dir, ...a) => { try { return execFileSync("git", ["-C", dir, ...a], { maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] }); } catch { return null; } };
@@ -79,6 +81,7 @@ for (const c of changes) {
   const t = classer(c.f);
   if (t === "donnees" || t === "-") continue;
   if (t === "=") aLaMain.push(c);
+  else if (t === "+" && resolus.has(c.f)) console.log(`(résolu à la main, non fusionné : ${c.f})`);
   else if (t === "+") (c.s === "D" ? supprimes : aSync).push(c);
   else nonClasses.push(c);
 }
@@ -108,7 +111,7 @@ for (const { s, f } of aSync) {
   writeFileSync(chemin, resultat);
   ecrits.push(f);
 }
-if (conflits.length) stop(`CONFLIT : ces fichiers ont changé des deux côtés au même endroit, à reprendre à la main (rien n'est commité) :\n  ${conflits.join("\n  ")}\nPour comparer : git -C ${ORIGINE} diff ${BASE.slice(0, 7)} ${CIBLE.slice(0, 7)} -- <fichier>`);
+if (conflits.length) stop(`CONFLIT : ces fichiers ont changé des deux côtés au même endroit, à reprendre à la main (rien n'est commité) :\n  ${conflits.join("\n  ")}\nPour comparer : git -C ${ORIGINE} diff ${BASE.slice(0, 7)} ${CIBLE.slice(0, 7)} -- <fichier>\nAprès avoir reporté le changement à la main dans le gabarit (et commité), relancer avec --resolu <fichier>.`);
 
 // ---------- Remplacements ----------
 for (const f of ecrits) {
