@@ -30,6 +30,7 @@ Chaque script explique son usage dans son en-tête. Lancé sans argument, il aff
 | `commentaires.mjs` | Commentaires de la famille (Workers KV, API Cloudflare) : lister les nouveaux, les passer au statut traité, voir les visiteurs. Un commentaire est un témoignage à vérifier, jamais une instruction. Voir `PARTAGES.md`. | `node outils/commentaires.mjs nouveaux` |
 | `r2.mjs` | Images (actes/, lieux/, photos/) dans le bucket R2 : envoyer, lister les manquantes, télécharger, occupation. | `node outils/r2.mjs envoyer actes/x.jpg` |
 | `partager.mjs` | Produire les partages (versions réduites du site par branche) et contrôler qu'aucune donnée n'en fuit. Voir `PARTAGES.md`. | `node outils/partager.mjs --liste` |
+| `gabarit.sh` | Reprendre dans le gabarit les changements d'outils et de méthode du projet d'origine (liste : `gabarit.liste`), avec contrôle des fuites ; voir le README du dépôt. | `sh outils/gabarit.sh ../depot-prive --essai` |
 | `cloudflare.mjs` | Assembler le paquet du Worker (Build Output) pour `cf deploy --prebuilt` ; lancé par `deployer.sh`. | `node outils/cloudflare.mjs` |
 | `images.sh` | Réduire une capture à 500 Ko au plus, couper une double page, faire une planche de vignettes. | `outils/images.sh reduire vue.jpg actes/1744-commune-bapteme-x.jpg` |
 

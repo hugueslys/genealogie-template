@@ -102,6 +102,46 @@ On ne cherche pas les parents de quelqu'un tant que le lien qui mène à lui est
 
 **Respect des vivants.** Pas de recherche en ligne sur les personnes vivantes ; elles sont masquées dans les partages.
 
+## Mettre à jour depuis le projet d'origine
+
+Ce gabarit vient d'un arbre réel, tenu dans un dépôt privé. Quand les outils ou la méthode de ce projet évoluent, `outils/gabarit.sh` reprend ces changements dans le gabarit, **sans jamais reprendre de données de famille**. Cette section ne sert qu'au mainteneur du gabarit. Si vous partez du gabarit pour votre propre arbre, vous pouvez l'ignorer.
+
+```bash
+sh outils/gabarit.sh ../chemin/du/depot-prive --essai
+```
+
+```bash
+sh outils/gabarit.sh ../chemin/du/depot-prive
+```
+
+La première commande montre ce qui changerait, sans rien commiter. La seconde fait la synchronisation et un commit local. **Le script ne pousse jamais** : on relit le diff, puis on pousse soi-même.
+
+**Ce que fait le script**
+1. Il lit `outils/gabarit.base` : le commit du dépôt privé dont le gabarit est issu.
+2. Il cherche les fichiers changés depuis ce commit et les classe avec `outils/gabarit.liste` :
+   - `+` : fichiers génériques (outils, leurs docs, méthode, site, Worker, skills, workflows). Ils sont repris ;
+   - `=` : fichiers rendus génériques à la main (`CLAUDE.md`, `cloudflare.config.ts`, `partages.json`, `vues.js`, `lieux.js`, `recits.js`…). Ils ne sont jamais copiés : le script dit seulement qu'ils ont changé ;
+   - `-` : fichiers propres au projet d'origine, ignorés.
+   Les données (fiches, actes, journaux régionaux, lectures, courriers) ne sont jamais lues. Un fichier qu'aucune règle ne couvre est signalé « non classé ».
+3. Pour chaque fichier `+`, il **rejoue le changement** du dépôt privé sur la version du gabarit (fusion à trois voies). Les adaptations déjà faites dans le gabarit sont gardées.
+4. Il applique les remplacements de `outils/gabarit.local` (noms réels → valeurs génériques). Ce fichier n'est **jamais versionné**. Modèle : `outils/gabarit.local.exemple`.
+5. Il **cherche les fuites** dans les fichiers repris. Il lit les noms à chercher dans le dépôt privé, au moment de la synchro, pour qu'ils ne soient jamais écrits dans le gabarit :
+   - les noms de famille de toutes les fiches ;
+   - le prénom et le nom de la racine ;
+   - les noms des partages ;
+   - les e-mails ;
+   - les identifiants Cloudflare ;
+   - le compte GitHub.
+6. Il lance `construire.mjs`, `verifier.mjs` et les tests du Worker sur les fiches fictives.
+7. Il affiche le diff et fait un commit local, avec `outils/gabarit.base` mis à jour.
+
+Tout se passe dans un dossier de travail temporaire : **en cas de fuite, de conflit ou de contrôle en échec, le script s'arrête et le gabarit n'est pas touché**.
+
+**En cas d'arrêt**
+- *Fuite* : ajouter un remplacement dans `outils/gabarit.local`, puis relancer. Si c'est un mot courant (un nom de famille qui est aussi un mot, comme « boulanger »), ajouter `? boulanger` dans ce même fichier.
+- *Conflit* (le même passage a changé des deux côtés) : reporter le changement à la main dans le gabarit et commiter. Relancer ensuite avec `--resolu <fichier>`.
+- `--garder` laisse le dossier de travail temporaire en place, pour regarder ce qui bloque.
+
 ## Organisation du dépôt
 
 | Dossier ou fichier | Contenu |
@@ -113,5 +153,6 @@ On ne cherche pas les parents de quelqu'un tant que le lien qui mène à lui est
 | `courriers/` | Les demandes hors ligne |
 | `worker/` | Le Worker Cloudflare (site, images, commentaires) |
 | `partages.json` | Les versions réduites du site, par branche |
+| `outils/gabarit.*` | La synchronisation avec le projet d'origine (voir plus haut) |
 
 Les images (actes, photos, lieux) ne sont pas dans git : elles sont dans le bucket R2.
