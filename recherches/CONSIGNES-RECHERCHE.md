@@ -21,7 +21,7 @@ l'objectif, les pistes et le ticket : tout le reste est ici.
 
 ## 3. Lire les registres sans gaspiller
 - **Repérer d'abord, lire ensuite** : index, tables décennales, noms en marge, planches de vues réduites. N'agrandis que les actes retenus (recadre l'acte utile).
-- Taille raisonnable des images : 1600 px de large au plus. Toute image gardée passe par `python3 -I outils/image.py <source> actes/<nom>.jpg [--recadrer x0,y0,x1,y1]`, **puis est envoyée dans R2 tout de suite** : `node outils/r2.mjs envoyer actes/<nom>.jpg`. Les images ne sont plus dans git (`.gitignore`) : une image non envoyée serait perdue. Pour revoir une image existante : `node outils/r2.mjs telecharger actes/<début du nom>`.
+- Taille raisonnable des images : 1600 px de large au plus. Toute image gardée passe par `python3 -I outils/image.py <source> actes/<nom>.jpg [--recadrer x0,y0,x1,y1]`, puis est commitée avec la fiche qui la cite (les images sont versionnées dans `actes/`, `lieux/` et `photos/`).
 - Note **chaque vue lue** dans la fiche de lecture du registre (`recherches/lectures/`), même sans résultat : la recherche suivante ne la relira pas.
 - **Règle d'arrêt** : si une piste n'a plus de registre en ligne pour la période (registres lus en entier, années manquantes, site fermé ou protégé), écris-la dans la ligne « Épuisé en ligne » du fichier de ta région et arrête-la. Ce qui demande un navigateur humain va dans la section « À faire avec un compte ou un navigateur humain » du fichier de ta région, avec la recherche précise (et un ticket `navigateur`).
 - **Ne jamais contourner une protection anti-robots** (Cloudflare, Anubis, captcha, « requires JS and cookies »).

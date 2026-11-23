@@ -131,7 +131,7 @@ for (const [id, p] of Object.entries(P)) {
   if (!["A", "B", "C", "D"].includes(p.fiab)) signaler(ERR, "fiab", id, `fiab = « ${p.fiab} » : attendu A, B, C ou D.`);
   if (!p.inconnu && !(Array.isArray(p.sources) && p.sources.length) && !(ACTES[id] && ACTES[id].length))
     signaler(AV, "source", id, `Fiche sans aucune source (${nomDe(id)}).`);
-  if (p.photo && !fs.existsSync(path.join(RACINE, p.photo))) signaler(AV, "image", id, `Portrait « ${p.photo} » absent du disque local (les images sont dans R2 : node outils/r2.mjs manquantes).`);
+  if (p.photo && !fs.existsSync(path.join(RACINE, p.photo))) signaler(AV, "image", id, `Portrait « ${p.photo} » absent du dépôt.`);
 }
 
 // ---------- 2 bis. Preuve des liens de parenté (liens.pere, liens.mere, union.lien) ----------
@@ -211,9 +211,8 @@ const imagesAbsentes = [];
 controlerMedias("FAMILLE_ACTES", ACTES);
 controlerMedias("FAMILLE_VUES", VUES);
 for (const p of Object.values(P)) if (p.photo) imagesReferencees.add(path.normalize(p.photo));
-// Les images ne sont plus dans git mais dans R2 : une image absente du disque local n'est pas une erreur ici.
-// Le déploiement est bloqué si une image référencée manque dans R2 (node outils/r2.mjs manquantes, deploy.yml).
-if (imagesAbsentes.length) signaler(AV, "image", null, `${imagesAbsentes.length} image(s) référencée(s) absente(s) du disque local (normal : elles sont dans R2 ; contrôle : node outils/r2.mjs manquantes).`);
+// Les images sont versionnées dans actes/, lieux/ et photos/ : une image référencée doit s'y trouver.
+if (imagesAbsentes.length) signaler(AV, "image", null, `${imagesAbsentes.length} image(s) référencée(s) absente(s) du dépôt : ${imagesAbsentes.slice(0, 5).join(", ")}${imagesAbsentes.length > 5 ? "…" : ""}.`);
 
 const IMG = /\.(jpe?g|png|gif|webp|avif)$/i;
 for (const dossier of ["actes", "lieux", "photos"]) {

@@ -39,7 +39,6 @@ if git grep -l "^<<<<<<< " -- '*.md' '*.json' '*.js' >/dev/null 2>&1; then echo 
 node outils/construire.mjs | tail -1
 E=$(node outils/verifier.mjs | grep -c '\[ERREUR\]'); F=$(node outils/partager.mjs 2>&1 | grep -ci fuite)
 echo "erreurs : $E   fuites : $F"
-node outils/r2.mjs manquantes >/dev/null 2>&1 || echo "ATTENTION : des images référencées manquent dans R2 (node outils/r2.mjs manquantes) : la recherche doit les envoyer."
 [ "$E" = 0 ] && [ "$F" = 0 ] || { echo "Contrôles en échec : rien n'est commité."; exit 1; }
 git add -A data recherches lieux.js recits.js vues.js lieux actes photos 2>/dev/null
 if git rev-parse -q --verify MERGE_HEAD >/dev/null || ! git diff --cached --quiet; then git commit -qm "$MSG$TRAILER"; fi

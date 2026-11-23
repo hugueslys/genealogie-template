@@ -1,6 +1,6 @@
 // Lieux de vie : photos aériennes anciennes (IGN), cartes postales, photos actuelles, fiches de l'Inventaire du patrimoine.
-// Une vue s'affiche sur la fiche des personnes listées. Les images sont dans le bucket R2 (dossier lieux/), envoyées avec
-// node outils/r2.mjs envoyer lieux/<fichier>.jpg. Les repères des vues actuelles sont des points de rue, pas
+// Une vue s'affiche sur la fiche des personnes listées. Les images sont dans le dossier lieux/ (versionné).
+// Les repères des vues actuelles sont des points de rue, pas
 // l'emplacement prouvé des maisons de la famille : le dire dans le titre quand c'est le cas.
 window.FAMILLE_VUES = {};
 (function () {

@@ -4,16 +4,15 @@
 #   + motif   fichier générique, SYNCHRONISÉ : les changements du projet d'origine sont fusionnés dans le gabarit
 #   - motif   EXCLU : jamais repris (outils propres au projet d'origine, migrations faites une seule fois…)
 #   = motif   À LA MAIN : jamais copié ; le script dit seulement s'il a changé dans le projet d'origine
+#   ! terme   INTERDIT dans une ligne reprise (casse et accents ignorés) : la synchro s'arrête. Sert à tenir hors du gabarit
+#             l'hébergement du projet d'origine, que le gabarit n'impose pas.
 # La dernière règle qui correspond l'emporte. Un fichier qu'aucune règle ne couvre est signalé « non classé ».
 # Les données de la famille (fiches, actes, journaux, lectures, courriers…) ne sont jamais lues, même si elles changent.
 
-# Site et Worker
+# Site
 + index.html
 + gedcom.mjs
-+ deployer.sh
 + publier.py
-+ worker/*.js
-+ worker/*.mjs
 
 # Outils et leur documentation
 + outils/*.mjs
@@ -32,16 +31,14 @@
 + recherches/METHODE.md
 + recherches/CONSIGNES-RECHERCHE.md
 
-# Skills, intégration continue, dépendances
+# Skills, intégration continue
 + .claude/skills/**
 + .github/workflows/*.yml
-+ package.json
-+ package-lock.json
-+ .gitignore
 
 # Rendus génériques à la main : le script signale seulement qu'ils ont changé
 = CLAUDE.md
-= cloudflare.config.ts
+= package.json
+= .gitignore
 = partages.json
 = manifest.webmanifest
 = icone.png
@@ -51,6 +48,31 @@
 = vues.js
 = lieux.js
 = recits.js
+
+# Hébergement du projet d'origine (Cloudflare) : pas dans le gabarit, chacun choisit le sien
+- cloudflare.config.ts
+- deployer.sh
+- worker/**
+- outils/cloudflare.mjs
+- outils/r2.mjs
+- outils/commentaires.mjs
+- .github/workflows/deploy.yml
+- .github/workflows/r2.yml
+- .claude/skills/commentaires/**
+- package-lock.json
+! r2
+! r2.mjs
+! cloudflare.mjs
+! cloudflare.config
+! commentaires.mjs
+! deployer.sh
+! worker
+! workers kv
+! cloudflare access
+! zero trust
+! bucket
+! cf deploy
+! wrangler
 
 # Propres au projet d'origine
 - recherches/FRONTIERE.md

@@ -15,9 +15,10 @@
 //      faites dans le gabarit sont donc gardées. Un conflit arrête tout ;
 //   3. remplacements de outils/gabarit.local (fichier local, jamais commité : il contient des noms réels) ;
 //   4. contrôle des fuites : noms de famille des fiches d'origine, prénom et nom de la racine, noms des partages,
-//      e-mails, identifiants Cloudflare et compte GitHub, tous lus dans le dépôt d'origine au moment de la synchro.
+//      e-mails, identifiants techniques et compte GitHub, tous lus dans le dépôt d'origine au moment de la synchro,
+//      plus les termes « ! » de gabarit.liste (hébergement). Seules les lignes nouvelles sont contrôlées.
 //      Une fuite arrête tout, sans rien commiter ;
-//   5. construire.mjs, verifier.mjs et les tests du Worker sur les fiches fictives ;
+//   5. construire.mjs et verifier.mjs sur les fiches fictives ;
 //   6. diff, puis commit local (avec outils/gabarit.base mis à jour). Le script ne pousse jamais.
 // Tout se passe dans un worktree git temporaire : en cas d'échec, le dossier du gabarit n'est pas touché.
 import { execFileSync, spawnSync } from "node:child_process";
@@ -60,7 +61,9 @@ if (git(ORIGINE, "rev-parse", BASE).trim() === CIBLE) { console.log(`Déjà à j
 // ---------- Règles ----------
 const DONNEES = /^(data\/personnes|data\/actes-orphelins\.json|actes|photos|lieux|courriers|entretiens|recherches\/journal|recherches\/lectures)(\/|$)/;
 const motifVersRegex = m => new RegExp("^" + m.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*\*\/?/g, "\u0000").replace(/\*/g, "[^/]*").replace(/\?/g, "[^/]").replace(/\u0000/g, ".*") + "$");
-const regles = readFileSync(join(GABARIT, "outils", "gabarit.liste"), "utf8").split("\n").map(l => l.trim()).filter(l => /^[-+=]\s+\S/.test(l)).map(l => ({ type: l[0], re: motifVersRegex(l.slice(1).trim()) }));
+const lignesListe = readFileSync(join(GABARIT, "outils", "gabarit.liste"), "utf8").split("\n").map(l => l.trim());
+const regles = lignesListe.filter(l => /^[-+=]\s+\S/.test(l)).map(l => ({ type: l[0], re: motifVersRegex(l.slice(1).trim()) }));
+const termesListe = lignesListe.filter(l => /^!\s+\S/.test(l)).map(l => l.slice(1).trim());
 const classer = f => { if (DONNEES.test(f)) return "donnees"; let t = null; for (const r of regles) if (r.re.test(f)) t = r.type; return t; };
 
 // Fichier local (non versionné) : remplacements « ancien => nouveau », termes interdits « ! terme », mots courants acceptés « ? mot ».
@@ -126,7 +129,7 @@ for (const f of ecrits) {
 const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const lireOrigine = f => { const b = gitBuf(ORIGINE, "show", `${CIBLE}:${f}`); return b ? b.toString("utf8") : ""; };
 const json = t => { try { return JSON.parse(t); } catch { return null; } };
-const noms = new Set(), interdits = new Set(local.interdits.map(norm));
+const noms = new Set(), interdits = new Set([...local.interdits, ...termesListe].map(norm));
 for (const n of readdirSync(join(ORIGINE, "data", "personnes")).filter(n => n.endsWith(".json"))) {
   const p = json(readFileSync(join(ORIGINE, "data", "personnes", n), "utf8")) || {};
   for (const x of [p.nom, p.nomNaissance].filter(Boolean).join(" ").split(/[\s,/()'’-]+/)) if (x.length >= 3) noms.add(norm(x));
@@ -162,9 +165,11 @@ const termes = [...[...interdits].map(t => [t, mot(t)]), ...[...noms].filter(n =
 const fuites = [];
 for (const f of ecrits) {
   const b = readFileSync(join(travail, f)); if (binaire(b)) continue;
-  b.toString("utf8").split("\n").forEach((l, i) => { const nl = norm(l); for (const [t, re] of termes) if (re.test(nl)) fuites.push(`${f}:${i + 1} « ${t} » : ${l.trim().slice(0, 120)}`); });
+  // Seules les lignes absentes de la version validée du gabarit sont contrôlées.
+  const avant = new Set((gitBuf(GABARIT, "show", `HEAD:${f}`) || "").toString("utf8").split("\n"));
+  b.toString("utf8").split("\n").forEach((l, i) => { if (avant.has(l)) return; const nl = norm(l); for (const [t, re] of termes) if (re.test(nl)) fuites.push(`${f}:${i + 1} « ${t} » : ${l.trim().slice(0, 120)}`); });
 }
-if (fuites.length) stop(`FUITE : des noms ou identifiants du projet d'origine apparaissent dans les fichiers repris (rien n'est commité).\n  ${fuites.join("\n  ")}\nÀ corriger : ajouter un remplacement dans outils/gabarit.local, ou reprendre le fichier à la main. Mot courant légitime : « ? mot » dans outils/gabarit.local.`);
+if (fuites.length) stop(`FUITE : des noms, des identifiants ou l'hébergement du projet d'origine apparaissent dans les lignes reprises (rien n'est commité).\n  ${fuites.join("\n  ")}\nÀ corriger : ajouter un remplacement dans outils/gabarit.local, ou reprendre le fichier à la main. Mot courant légitime : « ? mot » dans outils/gabarit.local.`);
 
 // ---------- Contrôles sur les fiches fictives ----------
 const etape = (nom, cmd, a) => {
@@ -175,7 +180,6 @@ const etape = (nom, cmd, a) => {
 };
 etape("construire.mjs", process.execPath, ["outils/construire.mjs"]);
 etape("verifier.mjs", process.execPath, ["outils/verifier.mjs"]);
-if (existsSync(join(travail, "worker", "test.mjs"))) etape("tests du Worker", process.execPath, ["--test", "worker/test.mjs"]);
 
 // ---------- Diff et commit ----------
 writeFileSync(join(travail, "outils", "gabarit.base"), CIBLE + "\n");

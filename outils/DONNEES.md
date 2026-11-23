@@ -1,6 +1,6 @@
 # Données de l'arbre : dossier `data/`
 
-Le site est statique (Cloudflare) et lit `famille.js` (`window.FAMILLE`) et `actes.js` (`window.FAMILLE_ACTES`).
+Le site est statique et lit `famille.js` (`window.FAMILLE`) et `actes.js` (`window.FAMILLE_ACTES`).
 Ces deux fichiers sont **générés** à partir de `data/`, qui est la source de vérité.
 Pas de base SQL : une fiche = un fichier JSON, et git sert d'historique (un diff par fiche modifiée).
 
@@ -90,7 +90,7 @@ node outils/fiche.mjs nouvelle martel_jean_1890 '{"prenoms": "Jean", "nom": "MAR
 
 Ajouter `--construire` à la dernière commande (ou lancer `node outils/construire.mjs`) pour régénérer `famille.js` et `actes.js`.
 On peut aussi éditer les JSON à la main. Dans les deux cas : `node outils/construire.mjs`, `node outils/verifier.mjs`,
-puis commit de `data/` seulement : `famille.js` et `actes.js` ne sont pas versionnés (`.gitignore`). `verifier.mjs` et `deployer.sh` les régénèrent ; en local, `node outils/construire.mjs` avant d'ouvrir le site.
+puis commit de `data/` seulement : `famille.js` et `actes.js` ne sont pas versionnés (`.gitignore`). `verifier.mjs` et `outils/site.sh` les régénèrent ; en local, `node outils/construire.mjs` avant d'ouvrir le site.
 
 Ne jamais modifier `famille.js` à la main : il est réécrit à chaque construction.
 
@@ -101,4 +101,4 @@ node outils/construire.mjs              # data/ → famille.js, actes.js
 node outils/construire.mjs --verifier   # échoue si famille.js / actes.js locaux ne correspondent pas à data/
 ```
 
-`deployer.sh` lance la construction avant de copier le site (dès que `data/personnes/` existe).
+`outils/site.sh` lance la construction avant de préparer le site à publier (`public/`).

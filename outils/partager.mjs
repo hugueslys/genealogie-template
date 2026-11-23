@@ -1,6 +1,6 @@
 // Produit les « partages » : des versions réduites du site, une par branche de famille, définies dans partages.json.
 // Chaque partage ne contient que les personnes de son périmètre ; les personnes vivantes y sont masquées.
-// Voir outils/PARTAGES.md (format du périmètre, règle de masquage, mise en place de Cloudflare Access).
+// Voir outils/PARTAGES.md (format du périmètre, règle de masquage, mise en ligne).
 //
 // Usage :
 //   node outils/partager.mjs                     tous les partages → public/partage/<nom>/
@@ -208,11 +208,9 @@ export function produire(partage, { sortie, donnees, site }) {
   writeFileSync(join(dir, "index.html"), html);
   const man = JSON.parse(readFileSync(join(DEPOT, "manifest.webmanifest"), "utf8"));
   writeFileSync(join(dir, "manifest.webmanifest"), JSON.stringify({ ...man, name: titre, short_name: partage.titre.slice(0, 24), start_url: "./", scope: "./" }, null, 2) + "\n");
-  // Images : servies depuis R2 par le Worker (worker/images.js), qui ne sert dans un partage que celles de cette
-  // liste ; elles ne sont plus copiées dans public/. La liste est écrite hors de public/ (.partages/<nom>-images.json).
+  // Images : seules celles qu'utilise le partage sont copiées dans son dossier (actes/, lieux/, photos/).
   const manquantes = [...images].filter(img => !existsSync(join(DEPOT, img)));
-  mkdirSync(join(DEPOT, ".partages"), { recursive: true });
-  writeFileSync(join(DEPOT, ".partages", `${partage.nom}-images.json`), JSON.stringify([...images].sort(), null, 1) + "\n");
+  for (const img of images) if (existsSync(join(DEPOT, img))) { mkdirSync(dirname(join(dir, img)), { recursive: true }); copyFileSync(join(DEPOT, img), join(dir, img)); }
   const ged = versGedcom(FAMILLE);
   writeFileSync(join(dir, "arbre.ged"), ged.texte);
 
@@ -267,7 +265,7 @@ export function controler(res, fiches, emails = []) {
   for (const [n, c] of Object.entries(L.FAMILLE_LIEUX || {}))
     if (!donneesP.includes(n) && !vuesLL.some(ll => Math.hypot(c[0] - ll[0], (c[1] - ll[1]) * Math.cos(ll[0] * Math.PI / 180)) < 0.12)) erreurs.push(`lieux.js : commune « ${n} » sans rapport avec le partage`);
   for (const cs of Object.values(L.FAMILLE_REGIONS || {})) for (const n of cs) if (!(L.FAMILLE_LIEUX || {})[n]) erreurs.push(`lieux.js : région citant « ${n} », absente du répertoire du partage`);
-  // 6. Adresses e-mail de partages.json (membres, administrateurs) : réservées au Worker, jamais dans les fichiers.
+  // 6. Adresses e-mail de partages.json (membres, administrateurs) : jamais dans les fichiers publiés.
   for (const e of emails) for (const [f, t] of textes) if (t.toLowerCase().includes(e.toLowerCase())) erreurs.push(`${f} : adresse e-mail de partages.json « ${e} »`);
   // 7. Images : exactement celles qui sont référencées.
   for (const f of tous.map(rel).filter(f => /^(actes|lieux|photos)\//.test(f))) if (!images.has(f)) erreurs.push(`image non référencée copiée : ${f}`);

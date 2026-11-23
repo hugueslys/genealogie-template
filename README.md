@@ -8,77 +8,41 @@ Un modèle pour construire l'arbre de votre famille, avec l'aide de Claude Code.
 - **Une fiche par personne**, dans un fichier JSON (`data/personnes/<id>.json`). Git garde l'historique de chaque modification.
 - **Des outils** en Node.js et Python, dans `outils/` : créer et modifier les fiches, contrôler les données, lire certains sites d'archives, publier.
 - **Une méthode de recherche** écrite pour Claude Code et pour ses agents : `recherches/METHODE.md` et `recherches/CONSIGNES-RECHERCHE.md`.
-- **Des partages** : des versions réduites du site, une par branche de la famille, où les personnes vivantes sont masquées. La famille peut y laisser des commentaires.
-- **Un hébergement Cloudflare** : un Worker sert le site, les images sont dans un bucket R2, l'accès est protégé par Cloudflare Access.
+- **Des partages** : des versions réduites du site, une par branche de la famille, où les personnes vivantes sont masquées.
 
-Le dépôt contient **3 personnes fictives** (Jeanne, Paul et Louise Martel). Elles servent d'exemple : remplacez-les par votre famille.
+Le dépôt contient **3 personnes fictives** (Jeanne, Paul et Louise Martel), pour voir à quoi ressemble un arbre. Claude les retire au démarrage.
 
 ## Démarrer
 
-### 1. Récupérer le gabarit
+Tout se fait en parlant à Claude Code : pas de commande à taper, pas de fichier à remplir.
 
-```bash
-git clone https://github.com/<compte>/genealogie-template.git mon-arbre
-```
+1. **Copiez le gabarit** : sur GitHub, bouton « Use this template » pour créer votre propre dépôt, **privé** (il contiendra des données sur votre famille). Ou demandez à Claude Code de le cloner pour vous.
+2. **Ouvrez Claude Code** dans le dossier (application Claude, onglet Code, ou `claude` dans un terminal).
+3. **Dites-lui : « Démarre mon arbre. »**
 
-```bash
-cd mon-arbre && npm install
-```
+Claude lance le skill `demarrer` :
+- il vérifie que l'ordinateur a ce qu'il faut (Node.js et Python) ;
+- il vous pose des questions simples, une à la fois : vous, vos parents, vos grands-parents, ce que vous savez au-delà ;
+- il crée les fiches, avec la source de chaque information (votre témoignage, un livret de famille…) ;
+- il retire les personnes d'exemple et adapte le projet à votre famille ;
+- il vous montre l'arbre dans le navigateur, puis propose les premières recherches.
 
-Il faut Node.js 22 (ou plus récent) et Python 3. Gardez votre dépôt **privé** : il contiendra des données sur votre famille.
+## Ensuite, au quotidien
 
-### 2. Créer sa première fiche
+Demandez simplement ce que vous voulez, par exemple :
+- « Cherche l'acte de naissance de mon grand-père. »
+- « Qui manque dans l'arbre, et où peut-on chercher ? »
+- « Voici la photo du livret de famille de mes grands-parents : ajoute ce qu'il contient. »
+- « Écris le récit de la branche de ma mère. »
+- « Prépare une version de l'arbre à montrer à mes cousins, sans les personnes vivantes. »
 
-Choisissez un identifiant court en minuscules, par exemple `dupont_marie`. Puis :
+Claude suit la méthode du dépôt (ci-dessous). Il note tout ce qu'il cherche dans un journal, pour ne jamais refaire deux fois la même recherche. Il vous dit ce qu'il ne peut pas faire seul : un site d'archives protégé contre les robots, un compte à créer, un document à demander par courrier.
 
-```bash
-node outils/fiche.mjs nouvelle dupont_marie '{"format": 2, "prenoms": "Marie", "nom": "DUPONT", "sexe": "F", "fiab": "B", "sources": [{"texte": "Témoignage de Marie Dupont, 01/02/2027.", "nature": "temoignage"}]}'
-```
+## Mettre le site en ligne (facultatif)
 
-Ensuite :
-- dans `data/meta.json`, mettez `dupont_marie` comme `racine` (la personne au centre de l'arbre) ; `fiche.mjs` l'a déjà ajoutée à la liste `ordre` ;
-- supprimez les fiches d'exemple (`data/personnes/jeanne_martel.json`, `paul_martel.json`, `louise_bertin.json`) et retirez-les de `ordre` ;
-- remplacez les exemples de `recits.js`, `lieux.js` (vos communes et leurs coordonnées) et `partages.json`.
+Demandez à Claude : « Prépare le site pour le mettre en ligne. » Il prépare tout dans un dossier `public/` : le site, les images, un fichier GEDCOM (lisible par Geneanet, Gramps, Heredis…) et un dossier par partage.
 
-Puis, à chaque modification :
-
-```bash
-node outils/construire.mjs
-```
-
-```bash
-node outils/verifier.mjs
-```
-
-Pour voir le site en local : `python3 -m http.server 8000`, puis ouvrir `http://localhost:8000`.
-
-Toutes les commandes de `fiche.mjs` (ajouter une source, un événement, un parent, un lien de parenté…) sont dans `outils/DONNEES.md`.
-
-### 3. Configurer Cloudflare (pour mettre le site en ligne)
-
-Vous pouvez d'abord tout faire en local et ne mettre en ligne que plus tard.
-
-1. Créez un compte Cloudflare (l'offre gratuite suffit pour commencer).
-2. Créez un bucket **R2** pour les images (par exemple `mon-arbre-images`).
-3. Dans `cloudflare.config.ts`, remplacez `mon-arbre` (nom du Worker) et `mon-arbre-images` (nom du bucket).
-4. Dans votre terminal, définissez deux variables (jamais dans un fichier du dépôt) :
-   - `CLOUDFLARE_ACCOUNT_ID` : l'identifiant de votre compte ;
-   - `CLOUDFLARE_API_TOKEN` : un jeton API (modèle « Edit Cloudflare Workers », plus l'accès R2 en lecture et écriture).
-5. Envoyez les images : `node outils/r2.mjs envoyer`.
-6. Déployez : `sh deployer.sh`.
-7. Protégez le site avec **Cloudflare Access** (Zero Trust), puis remplissez `partages.json` (`equipeAccess`, `administrateurs`, identifiants AUD). Le pas à pas est dans `outils/PARTAGES.md`.
-
-Pour déployer depuis GitHub (fichier `.github/workflows/deploy.yml`) : ajoutez le secret `CLOUDFLARE_API_TOKEN` et la variable `CLOUDFLARE_ACCOUNT_ID` dans les réglages du dépôt (Settings → Secrets and variables → Actions).
-
-### 4. Lancer Claude Code
-
-Ouvrez Claude Code dans le dossier du dépôt. Il lit `CLAUDE.md`, qui lui donne les règles du projet.
-
-1. Dans `CLAUDE.md`, remplacez `<Prénom Nom>` par la personne au centre de l'arbre, et précisez le périmètre.
-2. Demandez-lui par exemple : « Ajoute mes parents à l'arbre », puis « Cherche l'acte de naissance de mon grand-père ».
-3. Deux skills sont fournis dans `.claude/skills/` :
-   - `backlog` : suivre le travail dans les tickets GitHub du dépôt ;
-   - `commentaires` : traiter les commentaires laissés par la famille sur les partages.
+Le choix de l'hébergement vous appartient. Claude peut vous aider à le mettre en place chez l'hébergeur de votre choix. Une règle : **protégez l'accès** (mot de passe ou authentification), car le site contient des données de famille.
 
 ## La méthode
 
@@ -119,21 +83,22 @@ La première commande montre ce qui changerait, sans rien commiter. La seconde f
 **Ce que fait le script**
 1. Il lit `outils/gabarit.base` : le commit du dépôt privé dont le gabarit est issu.
 2. Il cherche les fichiers changés depuis ce commit et les classe avec `outils/gabarit.liste` :
-   - `+` : fichiers génériques (outils, leurs docs, méthode, site, Worker, skills, workflows). Ils sont repris ;
-   - `=` : fichiers rendus génériques à la main (`CLAUDE.md`, `cloudflare.config.ts`, `partages.json`, `vues.js`, `lieux.js`, `recits.js`…). Ils ne sont jamais copiés : le script dit seulement qu'ils ont changé ;
-   - `-` : fichiers propres au projet d'origine, ignorés.
+   - `+` : fichiers génériques (outils, leurs docs, méthode, site, skills, workflows). Ils sont repris ;
+   - `=` : fichiers rendus génériques à la main (`CLAUDE.md`, `partages.json`, `package.json`, `vues.js`, `lieux.js`, `recits.js`…). Ils ne sont jamais copiés : le script dit seulement qu'ils ont changé ;
+   - `-` : fichiers propres au projet d'origine, ignorés (dont tout ce qui concerne son hébergement).
    Les données (fiches, actes, journaux régionaux, lectures, courriers) ne sont jamais lues. Un fichier qu'aucune règle ne couvre est signalé « non classé ».
 3. Pour chaque fichier `+`, il **rejoue le changement** du dépôt privé sur la version du gabarit (fusion à trois voies). Les adaptations déjà faites dans le gabarit sont gardées.
 4. Il applique les remplacements de `outils/gabarit.local` (noms réels → valeurs génériques). Ce fichier n'est **jamais versionné**. Modèle : `outils/gabarit.local.exemple`.
-5. Il **cherche les fuites** dans les fichiers repris. Il lit les noms à chercher dans le dépôt privé, au moment de la synchro, pour qu'ils ne soient jamais écrits dans le gabarit :
+5. Il refuse aussi les mentions de l'hébergement du projet d'origine (termes `!` de `outils/gabarit.liste`) : ce gabarit n'impose aucun hébergeur.
+6. Il **cherche les fuites** dans les fichiers repris. Il lit les noms à chercher dans le dépôt privé, au moment de la synchro, pour qu'ils ne soient jamais écrits dans le gabarit :
    - les noms de famille de toutes les fiches ;
    - le prénom et le nom de la racine ;
    - les noms des partages ;
    - les e-mails ;
-   - les identifiants Cloudflare ;
+   - les identifiants techniques de son hébergement ;
    - le compte GitHub.
-6. Il lance `construire.mjs`, `verifier.mjs` et les tests du Worker sur les fiches fictives.
-7. Il affiche le diff et fait un commit local, avec `outils/gabarit.base` mis à jour.
+7. Il lance `construire.mjs` et `verifier.mjs` sur les fiches fictives.
+8. Il affiche le diff et fait un commit local, avec `outils/gabarit.base` mis à jour.
 
 Tout se passe dans un dossier de travail temporaire : **en cas de fuite, de conflit ou de contrôle en échec, le script s'arrête et le gabarit n'est pas touché**.
 
@@ -150,9 +115,9 @@ Tout se passe dans un dossier de travail temporaire : **en cas de fuite, de conf
 | `index.html`, `vues.js`, `lieux.js`, `recits.js` | Le site |
 | `outils/` | Les scripts et leur documentation (`README.md`, `DONNEES.md`, `PARTAGES.md`) |
 | `recherches/` | La méthode, les consignes, le journal, les registres déjà lus |
+| `actes/`, `lieux/`, `photos/` | Les images (à créer au premier ajout) |
 | `courriers/` | Les demandes hors ligne |
-| `worker/` | Le Worker Cloudflare (site, images, commentaires) |
 | `partages.json` | Les versions réduites du site, par branche |
+| `.claude/skills/` | Les skills de Claude : `demarrer` (mise en route), `backlog` (suivi dans les tickets GitHub) |
 | `outils/gabarit.*` | La synchronisation avec le projet d'origine (voir plus haut) |
 
-Les images (actes, photos, lieux) ne sont pas dans git : elles sont dans le bucket R2.

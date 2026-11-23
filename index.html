@@ -208,7 +208,7 @@
   .rq-bloc ul li { margin: 2px 0; } .rq-bloc ul li::marker { color: var(--fc); }
   .rq-plus { margin-top: 4px; padding: 4px 0; font: 500 12px var(--sans); color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .rq-vide { font: 13px var(--sans); color: var(--muted); }
-  /* Commentaires de la famille (servis par le Worker : absents en file:// ou sans l'API). */
+  /* Commentaires de la famille : affichés seulement si une API api/commentaires répond (non fournie dans ce gabarit). */
   #fiche .cm { margin-top: 18px; border-top: 1px solid var(--line); }
   .cm-liste { list-style: none; padding: 0 !important; margin: 4px 0 0 !important; }
   .cm-liste li { margin: 6px 0; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
@@ -938,13 +938,13 @@
     if (vue === "famille") dessinerFamille();
   }
 
-  // ---- Commentaires de la famille : API du Worker sous api/ (voir outils/PARTAGES.md, « Commentaires ») ----
+  // ---- Commentaires de la famille : API facultative sous api/ (non fournie dans ce gabarit ; sans elle, rien ne s'affiche) ----
   // En file:// ou si l'API ne répond pas, rien ne s'affiche. Dans un partage : la liste et un formulaire. Dans le site
   // complet (administrateurs) : les commentaires de tous les partages avec « Masquer », et dans la vue Recherches les
   // derniers commentaires et les visiteurs des partages.
   const CM = { mode: null, moi: {}, liste: [], visiteurs: null, envoi: false };
   // Site complet : statut de traitement (les sessions Claude intègrent les commentaires et les passent à « traité »,
-  // voir outils/commentaires.mjs) et « Masquer » / « Rétablir ».
+  // avec un outil propre à l'API) et « Masquer » / « Rétablir ».
   const statutCm = c => c.statut === "traite" ? `<span class="cm-statut traite">Traité${c.traitement ? " : " + esc(c.traitement) : ""}</span>` : `<span class="cm-statut">Nouveau</span>`;
   const actionsCm = c => `<div class="cm-bas"><button type="button" class="cm-act" data-cm-action="masquer" data-cm-id="${esc(c.id)}" data-masque="${c.masque ? "0" : "1"}">${c.masque ? "Rétablir" : "Masquer"}</button>${statutCm(c)}</div>`;
   document.addEventListener("click", async e => {
