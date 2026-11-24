@@ -203,6 +203,7 @@ export function produire(partage, { sortie, donnees, site }) {
   const lieux = filtrerLieux(site, [FAMILLE, FAMILLE_ACTES, recits.R, vues], vues);
   writeFileSync(join(dir, "lieux.js"), entete + `window.FAMILLE_LIEUX = ${JSON.stringify(lieux.LIEUX, null, 1)};\nwindow.FAMILLE_REGIONS = ${JSON.stringify(lieux.REGIONS, null, 1)};\n`);
   copyFileSync(join(DEPOT, "icone.png"), join(dir, "icone.png"));
+  copyFileSync(join(DEPOT, "favicon.svg"), join(dir, "favicon.svg"));
   const titre = `Arbre généalogique · ${partage.titre}`;
   const html = readFileSync(join(DEPOT, "index.html"), "utf8").replace(/<title>[^<]*<\/title>/, `<title>${titre.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</title>`);
   writeFileSync(join(dir, "index.html"), html);
