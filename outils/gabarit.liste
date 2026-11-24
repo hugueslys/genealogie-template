@@ -42,6 +42,7 @@
 = partages.json
 = manifest.webmanifest
 = icone.png
+= favicon.svg
 = recherches/JOURNAL.md
 = data/meta.json
 # Code et données mêlés (le mécanisme est générique, le contenu est celui de la famille)
