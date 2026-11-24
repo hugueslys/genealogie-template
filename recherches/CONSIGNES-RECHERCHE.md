@@ -49,6 +49,7 @@ l'objectif, les pistes et le ticket : tout le reste est ici.
 
 ## 7. Pour la session principale (orchestration)
 - Un lancement = objectif + pistes précises (registre, vues) + ticket + « lis recherches/CONSIGNES-RECHERCHE.md ». Pas de copie de ces consignes.
+- **Une seule recherche à la fois dans le navigateur** : plusieurs agents qui utilisent Claude in Chrome en même temps se volent les onglets, et le navigateur choisi peut basculer vers un autre profil Chrome connecté. Les recherches sans navigateur (accès direct aux images, IIIF, API) peuvent tourner en parallèle ; celles qui ont besoin du navigateur passent l'une après l'autre, toujours dans le profil Chrome choisi par le responsable de l'arbre (à sélectionner avec `select_browser`).
 - **Choix du modèle** : balayage d'index, de tables et de marges, inventaires de fonds, relevés en masse → modèle moins cher (`model: "sonnet"`). Lecture des actes décisifs, rattachements, raisonnements, relecture de liens, récits → modèle principal.
 - Ne pas relancer une piste marquée « Épuisé en ligne ».
 - Relecture : pour chaque lien qui monte d'une génération, une recherche de relecture lit l'acte **sans voir la lecture précédente** et compare (voir METHODE.md).
