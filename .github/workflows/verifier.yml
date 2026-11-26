@@ -1,6 +1,8 @@
 name: Vérification des données
 on:
   push:
+    # Les notes de recherche et les courriers ne touchent pas aux données : pas de contrôle (minutes GitHub Actions).
+    paths-ignore: ['recherches/**', 'courriers/**', '**.md']
   pull_request:
   workflow_dispatch:
 jobs:
